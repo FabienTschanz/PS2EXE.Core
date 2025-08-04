@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>{{OutputType}}</OutputType>
+    <TargetFramework>{{TargetFramework}}{{TargetOS}}</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <PublishSingleFile>false</PublishSingleFile>
+    <RuntimeIdentifier>{{RuntimeIdentifier}}</RuntimeIdentifier>
+    <SelfContained>{{SelfContained}}</SelfContained>
+    <UseWindowsForms>{{UseWindowsForms}}</UseWindowsForms>
+    <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
+    <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
+    <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
+    <GenerateAssemblyTitleAttribute>false</GenerateAssemblyTitleAttribute>
+    <StartupObject>ModuleNameSpace.MainApp</StartupObject>
+    <SatelliteResourceLanguages>en-US;en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.PowerShell.SDK" Version="{{PowerShellVersion}}" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="{{InputFile}}" />
+  </ItemGroup>
+
+</Project>
