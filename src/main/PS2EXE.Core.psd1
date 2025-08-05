@@ -12,7 +12,7 @@
     RootModule             = 'PS2EXE.Core.psm1'
 
     # Version number of this module.
-    ModuleVersion          = '0.1.0'
+    ModuleVersion          = '0.2.0'
 
     # Supported PSEditions
     # CompatiblePSEditions = @()
@@ -125,8 +125,11 @@ Or use Win-PS2EXE as a graphical front end to the compiler.
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
-# Version 0.1.0
+Version 0.2.0
+* Refactor C# file to use preprocessor directives instead of string replacements.
+* Added error message if compiling for Windows PowerShell on non-Windows platform.
 
+# Version 0.1.0
 * Initial release of PS2EXE.Core.
 '@
         } # End of PSData hashtable
