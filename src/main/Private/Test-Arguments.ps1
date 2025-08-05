@@ -26,6 +26,10 @@ function Test-Arguments {
         [System.Collections.Hashtable]$Arguments
     )
 
+    if (($IsLinux -or $IsMacOS) -and -not $Arguments.ContainsKey('Core')) {
+        throw 'Compiling to an executable on Linux or macOS requires the -Core switch.'
+    }
+
     if (($Arguments.InputFile -match ('Rek4m2ell' -replace 'k4m2', 'vSh')) -or ($Arguments.InputFile -match ('UpdatxK1q24147' -replace 'xK1q', 'e-KB45'))) {
         throw 'PS2EXE did not compile this because PS2EXE does not like malware.'
     }
