@@ -32,19 +32,34 @@ Describe "$moduleName Invoke-PS2EXE Tests" {
     }
 
     Context "Invoke-PS2EXE Functionality" {
-        It "should compile a PowerShell script to an executable" {
+        It "should compile a PowerShell script to an executable" -Skip:($IsCoreCLR -eq $true) {
             $resourcesPath = Join-Path -Path $rootPath -ChildPath 'resources'
             $scriptPath = Join-Path -Path $resourcesPath -ChildPath 'TestScript.ps1'
             $exePath = Join-Path -Path $rootPath -ChildPath 'bin\output\TestScript.exe'
 
-            # Invoke the PS2EXE function
-            Invoke-PS2EXE -InputFile $scriptPath -OutputFile $exePath -Core -TargetFramework 'net9.0'
+            Invoke-PS2EXE -InputFile $scriptPath -OutputFile $exePath -Verbose
 
             # Check if the executable was created
             Test-Path -Path $exePath | Should -BeTrue
 
             # Clean up
             Remove-Item -Path $exePath -Force -ErrorAction SilentlyContinue
+        }
+
+        It "should compile a PowerShell script to Core executable" {
+            $resourcesPath = Join-Path -Path $rootPath -ChildPath 'resources'
+            $scriptPath = Join-Path -Path $resourcesPath -ChildPath 'TestScript.ps1'
+            $outputDir = Join-Path -Path $rootPath -ChildPath 'bin\output'
+            $exePath = Join-Path -Path $outputDir -ChildPath 'TestScript.exe'
+            $testPath = Join-Path -Path $outputDir -ChildPath 'Release\TestScript.exe'
+
+            Invoke-PS2EXE -InputFile $scriptPath -OutputFile $exePath -Core
+
+            # Check if the executable was created
+            Test-Path -Path $testPath | Should -BeTrue
+
+            # Clean up
+            Remove-Item -Path $outputDir -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
 }
