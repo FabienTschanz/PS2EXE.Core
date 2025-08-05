@@ -1,11 +1,6 @@
 ﻿# Define aliases
-Set-Alias ps2exe Invoke-PS2EXE -Scope Global
-Set-Alias ps2exe.ps1 Invoke-PS2EXE -Scope Global
-Set-Alias Win-PS2EXE "$PSScriptRoot\Win-PS2EXE.exe" -Scope Global
-Set-Alias Win-PS2EXE.exe "$PSScriptRoot\Win-PS2EXE.exe" -Scope Global
-
-# Export aliases
-Export-ModuleMember -Alias @('ps2exe', 'ps2exe.ps1', 'Win-PS2EXE', 'Win-PS2EXE.exe')
+Set-Alias -Name "Win-PS2EXE" -Value "$PSScriptRoot\Win-PS2EXE.exe" -Scope Global
+Set-Alias -Name "Win-PS2EXE.exe" -Value "$PSScriptRoot\Win-PS2EXE.exe" -Scope Global
 
 $ErrorActionPreference = 'Stop'
 
