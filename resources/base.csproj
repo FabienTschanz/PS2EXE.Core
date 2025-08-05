@@ -13,8 +13,11 @@
     <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
     <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
     <GenerateAssemblyTitleAttribute>false</GenerateAssemblyTitleAttribute>
+    <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
+    <GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
     <StartupObject>ModuleNameSpace.MainApp</StartupObject>
     <SatelliteResourceLanguages>en-US;en</SatelliteResourceLanguages>
+    <DefineConstants>{{DefineConstants}}</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
