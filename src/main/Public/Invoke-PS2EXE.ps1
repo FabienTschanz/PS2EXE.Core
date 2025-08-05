@@ -172,6 +172,8 @@
 #>
 function Invoke-PS2EXE {
     [CmdletBinding(DefaultParameterSetName = 'WinPS')]
+    [Alias('ps2exe')]
+    [Alias('ps2exe.ps1')]
     param(
         [Parameter(Mandatory = $true, Position = 0)]
         [System.String]
@@ -264,7 +266,7 @@ function Invoke-PS2EXE {
 
         [Parameter()]
         [System.String]
-        $Version,
+        $Version = '0.0.0.0',
 
         [Parameter()]
         [switch]
@@ -339,8 +341,10 @@ function Invoke-PS2EXE {
         Write-Output "PowerShell Desktop environment started...`n"
     }
 
-    if (-not $Nested -and ($PSVersionTable.PSEdition -eq 'Core') -and -not $Core) {
-        # starting Windows Powershell
+    Test-Arguments -Arguments $PSBoundParameters
+
+    # Start Windows PowerShell if target is not Core
+    if (-not $Nested -and ($PSVersionTable.PSEdition -eq 'Core') -and -not $Core -and $IsWindows) {
         $callParam = ''
         foreach ($Param in $PSBoundparameters.GetEnumerator()) {
             if ($Param.Value -is [System.Management.Automation.SwitchParameter]) {
@@ -367,8 +371,6 @@ function Invoke-PS2EXE {
         powershell -Command "if ((Get-Command -Name 'Invoke-PS2EXE' -ErrorAction 'SilentlyContinue').Length -eq 0) { Import-Module '$PSScriptRoot\PS2EXE.Core.psm1' }; &'$($MyInvocation.MyCommand.Name)' $callParam"
         return
     }
-
-    Test-Arguments -Arguments $PSBoundParameters
 
     # Retrieve absolute paths independent if path is given relative oder absolute
     $InputFile = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($InputFile)
@@ -511,256 +513,20 @@ function Invoke-PS2EXE {
     Write-Output "Reading input file $InputFile"
     [void]$compilerParameters.EmbeddedResources.Add($InputFile)
 
-    $culture = ''
-
-    if ($lcid) {
-        $culture = @"
-System.Threading.Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.GetCultureInfo($lcid);
-System.Threading.Thread.CurrentThread.CurrentUICulture = System.Globalization.CultureInfo.GetCultureInfo($lcid);
-"@
-    }
-
     $mainCsPath = Join-Path -Path $PSScriptRoot 'main.cs'
     $programFrame = Get-Content -Path $mainCsPath -Raw -Encoding UTF8
-    if ($NoConsole) {
-        $programFrame = $programFrame -replace "{{usingWinForms}}", "using System.Windows.Forms;`nusing System.Drawing;`n"
-        $programFrame = $programFrame -replace "{{CredentialForm}}", (Get-CredentialForm)
-        $programFrame = $programFrame -replace "{{StoreConsoleColors}}", "
-        // Storage console colors in GUI output is read and set, but not currently used (for future use)
-        private ConsoleColor GUIBackgroundColor = ConsoleColor.White;
-        private ConsoleColor GUIForegroundColor = ConsoleColor.Black;"
-        $programFrame = $programFrame -replace "{{GetConsoleBackground}}", "return GUIBackgroundColor;"
-        $programFrame = $programFrame -replace "{{SetConsoleBackground}}", "GUIBackgroundColor = value;"
-        if ([System.String]::IsNullOrEmpty($Title)) {
-            $programFrame = $programFrame -replace "{{GUITitle}}", "private string GUITitle = System.AppDomain.CurrentDomain.FriendlyName;`n"
-        } else {
-            $programFrame = $programFrame -replace "{{GUITitle}}", "private string GUITitle = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyTitleAttribute>().Title;`n"
-        }
-
-        $programFrame = $programFrame -replace "{{GetConsoleBackground}}", "return Console.BackgroundColor;"
-        $programFrame = $programFrame -replace "{{SetConsoleBackground}}", "Console.BackgroundColor = value;"
-        $programFrame = $programFrame -replace "{{GetBufferSize}}", "// return default value for Winforms. If no valid value is returned WriteLine will not be called
-                return new System.Management.Automation.Host.Size(120, 50);"
-        $programFrame = $programFrame -replace "{{GetCursorPosition}}", "// Dummy value for WinForms
-                return new Coordinates(0, 0);"
-
-        $programFrame = $programFrame -replace "{{GetCursorSize}}", "// Dummy value for WinForms
-                return 25;"
-        $programFrame = $programFrame -replace "{{InvisibleForm}}", "`n        private Form Invisible_Form = null;`n"
-        $programFrame = $programFrame -replace "{{FlushInputBuffer}}", "if (Invisible_Form != null)
-            {
-                Invisible_Form.Close();
-                Invisible_Form = null;
-            }
-            else
-            {
-                Invisible_Form = new Form();
-                Invisible_Form.Opacity = 0;
-                Invisible_Form.ShowInTaskbar = false;
-                Invisible_Form.Visible = true;
-            }"
-        $programFrame = $programFrame -replace "{{GetForegroundColor}}", "return GUIForegroundColor;"
-        $programFrame = $programFrame -replace "{{SetForegroundColor}}", "GUIForegroundColor = value;"
-        $programFrame = $programFrame -replace "{{GetKeyAvailable}}", "return true;"
-        $programFrame = $programFrame -replace "{{GetMaxPhysicalWindowSize}}", "// Dummy value for Winforms
-                return new System.Management.Automation.Host.Size(240, 84);"
-        $programFrame = $programFrame -replace "{{GetMaxWindowSize}}", "// Dummy value for Winforms
-                return new System.Management.Automation.Host.Size(120, 84);"
-        $programFrame = $programFrame -replace "{{GetWindowPosition}}", "// Dummy value for Winforms
-                s.X = 0;
-                s.Y = 0;"
-        $programFrame = $programFrame -replace "{{GetWindowSize}}", "// Dummy value for Winforms
-                s.Height = 50;
-                s.Width = 120;"
-        $programFrame = $programFrame -replace "{{GetWindowTitle}}", "return GUITitle;"
-        $programFrame = $programFrame -replace "{{SetWindowTitle}}", "GUITitle = value;"
-        $programFrame = $programFrame -replace "{{ProgressForegroundColor}}", "ConsoleColor.DarkCyan"
-        $programFrame = $programFrame -replace "{{MessageBoxMessage}}", "`n        private string ib_message;`n"
-        $programFrame = $programFrame -replace "{{ReadLine}}", "string sWert = """";
-            if (Input_Box.Show(rawUI.WindowTitle, ib_message, ref sWert) == DialogResult.OK)
-                return sWert;
-            else"
-        if ($ExitOnCancel) {
-            $programFrame = $programFrame -replace "{{ReadLineExit}}", 'Environment.Exit(1);
-                return "";'
-        } else {
-            $programFrame = $programFrame -replace "{{ReadLineExit}}", 'return "";'
-        }
-        $programFrame = $programFrame -replace "{{GetPassword}}", 'string sWert = "";
-            if (Input_Box.Show(rawUI.WindowTitle, ib_message, ref sWert, true) == DialogResult.OK)
-            {
-                foreach (char ch in sWert)
-                    secstr.AppendChar(ch);
-            }'
-        if ($ExitOnCancel) {
-            $programFrame = $programFrame -replace "{{GetPasswordExit}}", "else
-                Environment.Exit(1);"
-        }
-
-        $programFrame = $programFrame -replace "{{WriteLineInternal}}", (Get-WriteLineInternal)
-        $programFrame = $programFrame -replace "{{ProgressForm}}", "public Progress_Form pf = null;"
-        $programFrame = $programFrame -replace "{{WriteProgress}}", (Get-WriteProgress)
-
-        if (-not $NoVisualStyles) {
-            $programFrame = $programFrame -replace "{{VisualStyles}}", "Application.EnableVisualStyles();"
-        }
-
-        $programFrame = $programFrame -replace "{{ExtractNotification}}", 'MessageBox.Show("If you specify the -extract option you need to add a file for extraction in this way\r\n   -extract:\"<filename>\"", System.AppDomain.CurrentDomain.FriendlyName, MessageBoxButtons.OK, MessageBoxIcon.Error);'
-        $programFrame = $programFrame -replace "{{GetCursorSize}}", ""
-        $programFrame = $programFrame -replace "{{GetCursorSize}}", ""
-
-        # Previously for all, now only for $NoConsole
-        $programFrame = $programFrame -replace "{{DialogBoxes}}", (Get-DialogBox -NoVisualStyles:$NoVisualStyles)
-    } else {
-        $programFrame = $programFrame -replace "{{ConsoleSetup}}", (Get-ConsoleSetup)
-        $programFrame = $programFrame -replace "{{GetBufferSize}}", "if (Console.IsOutputRedirected)
-                    // return default value for redirection. If no valid value is returned WriteLine will not be called
-                    return new System.Management.Automation.Host.Size(120, 50);
-                else
-                    return new System.Management.Automation.Host.Size(Console.BufferWidth, Console.BufferHeight);"
-        $programFrame = $programFrame -replace "{{SetBufferSize}}", "Console.BufferWidth = value.Width;
-                Console.BufferHeight = value.Height;"
-        $programFrame = $programFrame -replace "{{GetCursorPosition}}", "return new Coordinates(Console.CursorLeft, Console.CursorTop);"
-        $programFrame = $programFrame -replace "{{SetCursorPosition}}", "Console.CursorTop = value.Y;
-                Console.CursorLeft = value.X;"
-
-        $programFrame = $programFrame -replace "{{GetConsoleBackground}}", "return Console.BackgroundColor;"
-        $programFrame = $programFrame -replace "{{SetConsoleBackground}}", "Console.BackgroundColor = value;"
-
-
-        $programFrame = $programFrame -replace "{{GetCursorSize}}", "return Console.CursorSize;"
-        $programFrame = $programFrame -replace "{{SetCursorSize}}", "Console.CursorSize = value;"
-        $programFrame = $programFrame -replace "{{FlushInputBuffer}}", "if (!Console.IsInputRedirected)
-            { while (Console.KeyAvailable)
-                    Console.ReadKey(true);
-            }"
-        $programFrame = $programFrame -replace "{{GetForegroundColor}}", "return Console.ForegroundColor;"
-        $programFrame = $programFrame -replace "{{SetForegroundColor}}", "Console.ForegroundColor = value;"
-        $programFrame = $programFrame -replace "{{GetKeyAvailable}}", "return Console.KeyAvailable;"
-        $programFrame = $programFrame -replace "{{GetMaxPhysicalWindowSize}}", "return new System.Management.Automation.Host.Size(Console.LargestWindowWidth, Console.LargestWindowHeight);"
-        $programFrame = $programFrame -replace "{{GetMaxWindowSize}}", "return new System.Management.Automation.Host.Size(Console.BufferWidth, Console.BufferWidth);"
-        $programFrame = $programFrame -replace "{{ScrollBufferContents}}", (Get-ScrollBufferContent)
-        $programFrame = $programFrame -replace "{{SetBufferContents1}}", (Get-SetBufferContent1)
-        $programFrame = $programFrame -replace "{{SetBufferContents2}}", (Get-SetBufferContent2)
-        $programFrame = $programFrame -replace "{{GetWindowPosition}}", "s.X = Console.WindowLeft;
-                s.Y = Console.WindowTop;"
-        $programFrame = $programFrame -replace "{{SetWindowPosition}}", "Console.WindowLeft = value.X;
-                Console.WindowTop = value.Y;"
-        $programFrame = $programFrame -replace "{{GetWindowSize}}", "s.Height = Console.WindowHeight;
-                s.Width = Console.WindowWidth;"
-        $programFrame = $programFrame -replace "{{SetWindowSize}}", "Console.WindowWidth = value.Width;
-                Console.WindowHeight = value.Height;"
-        $programFrame = $programFrame -replace "{{GetWindowTitle}}", "return Console.Title;"
-        $programFrame = $programFrame -replace "{{SetWindowTitle}}", "Console.Title = value;"
-        $programFrame = $programFrame -replace "{{ProgressForegroundColor}}", "ConsoleColor.Yellow"
-        $programFrame = $programFrame -replace "{{baseColorSetup}}", "rawUI.ForegroundColor = Console.ForegroundColor;
-            rawUI.BackgroundColor = Console.BackgroundColor;"
-        $programFrame = $programFrame -replace "{{ReadLine}}", "return Console.ReadLine();"
-        $programFrame = $programFrame -replace "{{ReadLineExit}}", 'return "";'
-        $programFrame = $programFrame -replace "{{GetPassword}}", "secstr = getPassword();"
-
-        if ($UnicodeEncoding) {
-            $programFrame = $programFrame -replace "{{OutputEncoding}}", "Console.OutputEncoding = new System.Text.UnicodeEncoding();"
-        }
-        $programFrame = $programFrame -replace "{{CancelKeyPress}}", 'Console.CancelKeyPress += new ConsoleCancelEventHandler(delegate(object sender, ConsoleCancelEventArgs e)
-                        {
-                            try
-                            {
-                                posh.BeginStop(new AsyncCallback(delegate(IAsyncResult r)
-                                {
-                                    mre.Set();
-                                    e.Cancel = true;
-                                }), null);
-                            }
-                            catch
-                            {
-                            };
-                        });'
-        $programFrame = $programFrame -replace "{{ExtractNotification}}", 'Console.WriteLine("If you specify the -extract option you need to add a file for extraction in this way\r\n   -extract:\"<filename>\"");'
-        $programFrame = $programFrame -replace "{{GetCursorSize}}", ""
+    if ($lcid) {
+        $programFrame = $programFrame -replace "{{lcid}}", $lcid
     }
 
-    if ($CredentialGUI) {
-        $programFrame = $programFrame -replace "{{CredentialForm}}", (Get-CredentialForm)
-    }
-
-    if ($WinFormsDPIAware) {
-        $programFrame = $programFrame -replace "{{usingVersioning}}", "using System.Runtime.Versioning;`n"
-        $programFrame = $programFrame -replace "{{TargetFramework}}", "[assembly:TargetFrameworkAttribute("".NETFramework,Version=v4.7,Profile=Client"",FrameworkDisplayName="".NET Framework 4.7"")]`n"
-    }
-
-    if ($NoOutput) {
-
-    } else {
-        if ($NoConsole) {
-            $programFrame = $programFrame -replace "{{Write1}}", 'if ((!string.IsNullOrEmpty(value)) && (value != "\n"))
-                MessageBox.Show(value, rawUI.WindowTitle);'
-            $programFrame = $programFrame -replace "{{Write2}}", 'if ((!string.IsNullOrEmpty(value)) && (value != "\n"))
-                MessageBox.Show(value, rawUI.WindowTitle);'
-            $programFrame = $programFrame -replace "{{WriteLine1}}", 'MessageBox.Show("", rawUI.WindowTitle);'
-            $programFrame = $programFrame -replace "{{WriteLine2}}", 'if ((!string.IsNullOrEmpty(value)) && (value != "\n"))
-                MessageBox.Show(value, rawUI.WindowTitle);'
-            $programFrame = $programFrame -replace "{{WriteLine3}}", 'if ((!string.IsNullOrEmpty(value)) && (value != "\n"))
-                MessageBox.Show(value, rawUI.WindowTitle);'
-            $programFrame = $programFrame -replace "{{WriteVerboseLine}}", "MessageBox.Show(message, rawUI.WindowTitle, MessageBoxButtons.OK, MessageBoxIcon.Information);"
-            $programFrame = $programFrame -replace "{{WriteWarningLine}}", "MessageBox.Show(message, rawUI.WindowTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);"
-        } else {
-            $programFrame = $programFrame -replace "{{Write1}}", 'ConsoleColor fgc = Console.ForegroundColor, bgc = Console.BackgroundColor;
-            Console.ForegroundColor = foregroundColor;
-            Console.BackgroundColor = backgroundColor;
-            Console.Write(value);
-            Console.ForegroundColor = fgc;
-            Console.BackgroundColor = bgc;'
-            $programFrame = $programFrame -replace "{{Write2}}", "Console.Write(value);"
-            $programFrame = $programFrame -replace "{{WriteLine1}}", "Console.WriteLine();"
-            $programFrame = $programFrame -replace "{{WriteLine2}}", 'ConsoleColor fgc = Console.ForegroundColor, bgc = Console.BackgroundColor;
-            Console.ForegroundColor = foregroundColor;
-            Console.BackgroundColor = backgroundColor;
-            Console.WriteLine(value);
-            Console.ForegroundColor = fgc;
-            Console.BackgroundColor = bgc;'
-            $programFrame = $programFrame -replace "{{WriteLine3}}", "Console.WriteLine(value);"
-            $programFrame = $programFrame -replace "{{WriteVerboseLine}}", 'WriteLine(VerboseForegroundColor, VerboseBackgroundColor, string.Format("VERBOSE: {0}", message));'
+    $compilerDefinitions = @('NoConsole', 'CredentialGUI', 'MTA', 'STA', 'NoVisualStyles', 'WinFormsDPIAware', 'Title', 'NoError', 'NoOutput', 'ConHost', 'UnicodeEncoding', 'ExitOnCancel', 'lcid')
+    $parameterDefinitions = ""
+    $constants = @()
+    foreach ($param in $compilerDefinitions) {
+        if (Get-Variable -Name $param -ValueOnly) {
+            $parameterDefinitions += " /define:$param"
+            $constants += $param
         }
-    }
-
-    if ($NoError) {
-
-    } else {
-        if ($NoConsole) {
-            $programFrame = $programFrame -replace "{{WriteDebugLine}}", "MessageBox.Show(message, rawUI.WindowTitle, MessageBoxButtons.OK, MessageBoxIcon.Information);"
-            $programFrame = $programFrame -replace "{{WriteErrorLine}}", "MessageBox.Show(value, rawUI.WindowTitle, MessageBoxButtons.OK, MessageBoxIcon.Error);"
-            $programFrame = $programFrame -replace "{{CatchException}}", 'MessageBox.Show("An exception occured: " + ex.Message, System.AppDomain.CurrentDomain.FriendlyName, MessageBoxButtons.OK, MessageBoxIcon.Error);'
-            $programFrame = $programFrame -replace "{{WaitForExit}}", 'MessageBox.Show("Click OK to exit...", System.AppDomain.CurrentDomain.FriendlyName);'
-        } else {
-            $programFrame = $programFrame -replace "{{WriteLineInternal}}", (Get-WriteLineInternal)
-            $programFrame = $programFrame -replace "{{WriteDebugLine}}", 'WriteLineInternal(DebugForegroundColor, DebugBackgroundColor, string.Format("DEBUG: {0}", message));'
-            $programFrame = $programFrame -replace "{{WriteWarningLine}}", 'WriteLineInternal(WarningForegroundColor, WarningBackgroundColor, string.Format("WARNING: {0}", message));'
-            $programFrame = $programFrame -replace "{{WriteErrorLine}}", 'if (Console.IsErrorRedirected)
-                Console.Error.WriteLine(string.Format("ERROR: {0}", value));
-            else
-                WriteLineInternal(ErrorForegroundColor, ErrorBackgroundColor, string.Format("ERROR: {0}", value));'
-            $programFrame = $programFrame -replace "{{CatchException}}", 'Console.Write("An exception occured: ");
-                Console.WriteLine(ex.Message);'
-            $programFrame = $programFrame -replace "{{WaitForExit}}", 'Console.WriteLine("Hit any key to exit...");
-                Console.ReadKey();'
-        }
-    }
-
-    if ($ConHost) {
-        $programFrame = $programFrame -replace "{{AllocConsole}}", '[DllImport("kernel32.dll", SetLastError = true)][return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool AllocConsole();'
-        $programFrame = $programFrame -replace "{{SetupConHost}}", (Get-SetupConHost)
-    }
-
-    if ($STA) {
-        $programFrame = $programFrame -replace "{{ApartmentState}}", "[STAThread]"
-        $programFrame = $programFrame -replace "{{RunspaceApartmentState}}", "myRunSpace.ApartmentState = System.Threading.ApartmentState.STA;"
-    }
-
-    if ($MTA) {
-        $programFrame = $programFrame -replace "{{ApartmentState}}", "[MTAThread]"
-        $programFrame = $programFrame -replace "{{RunspaceApartmentState}}", "myRunSpace.ApartmentState = System.Threading.ApartmentState.MTA;"
     }
 
     $programFrame = $programFrame -replace "{{Title}}", $Title
@@ -770,18 +536,9 @@ System.Threading.Thread.CurrentThread.CurrentUICulture = System.Globalization.Cu
     $programFrame = $programFrame -replace "{{Description}}", $Description
     $programFrame = $programFrame -replace "{{Company}}", $Company
 
-    $programFrame = $programFrame -replace "{{BufferContent}}", (Get-BufferContent -NoConsole:$NoConsole)
-    $programFrame = $programFrame -replace "{{ReadKey}}", (Get-ReadKey -NoConsole:$NoConsole)
-    $programFrame = $programFrame -replace "{{Prompt}}", (Get-Prompt -NoConsole:$NoConsole)
-    $programFrame = $programFrame -replace "{{PromptForChoice}}", (Get-PromptForChoice -NoConsole:$NoConsole)
-    $programFrame = $programFrame -replace "{{PromptForCredential1}}", (Get-PromptForCredential1 -NoConsole:$NoConsole -CredentialGUI:$CredentialGUI)
-    $programFrame = $programFrame -replace "{{PromptForCredential2}}", (Get-PromptForCredential2 -NoConsole:$NoConsole -CredentialGUI:$CredentialGUI)
     $programFrame = $programFrame -replace "{{Culture}}", $culture
     $programFrame = $programFrame -replace "{{FileName}}", [System.IO.Path]::GetFileName($InputFile)
-
-    if (-not [System.String]::IsNullOrEmpty($Version)) {
-        $programFrame = $programFrame -replace "{{AssemblyVersion}}","[assembly:AssemblyVersion(""$Version"")];`n[assembly:AssemblyFileVersion(""$Version"")]`n"
-    }
+    $programFrame = $programFrame -replace "{{Version}}", $Version
 
     if ($WinFormsDPIAware) {
         $ConfigFileForEXE3 = "<?xml version=""1.0"" encoding=""utf-8"" ?>`r`n<configuration><startup><supportedRuntime version=""v4.0"" sku="".NETFramework,Version=v4.7"" /></startup>"
@@ -824,11 +581,11 @@ System.Threading.Thread.CurrentThread.CurrentUICulture = System.Globalization.Cu
             } elseif ($x86) {
                 $runtimeIdentifier = 'win-x86'
             } elseif ($ARM) {
-                $runtimeIdentifier = 'win-arm'
+                $runtimeIdentifier = 'win-arm64'
             }
         } elseif ($TargetOS -eq 'Linux') {
             if ($ARM) {
-                $runtimeIdentifier = 'linux-arm'
+                $runtimeIdentifier = 'linux-arm64'
             } else {
                 $runtimeIdentifier = 'linux-x64'
             }
@@ -845,6 +602,7 @@ System.Threading.Thread.CurrentThread.CurrentUICulture = System.Globalization.Cu
         $csProjFile = $csProjFile -replace "{{PowerShellVersion}}", $PowerShellVersion
         $csProjFile = $csProjFile -replace "{{SelfContained}}", $SelfContained
         $csProjFile = $csProjFile -replace "{{UseWindowsForms}}", ($NoConsole -or $CredentialGUI)
+        $csProjFile = $csProjFile -replace "{{DefineConstants}}", $constants -join ';'
         if ($NoConsole) {
             $csProjFile = $csProjFile -replace "{{OutputType}}", 'WinExe'
             $csProjFile = $csProjFile -replace "{{TargetOS}}", '-windows'
@@ -861,10 +619,9 @@ System.Threading.Thread.CurrentThread.CurrentUICulture = System.Globalization.Cu
         }
         Remove-Item -Path $csProjPath -Force -ErrorAction SilentlyContinue
         Remove-Item -Path $scriptCsPath -Force -ErrorAction SilentlyContinue
-        #Remove-Item -Path $scriptFilePath -Force -ErrorAction SilentlyContinue
-        #Move-Item -Path $outputDirectory -Destination ([System.IO.Path]::GetDirectoryName($OutputFile)) -Force
     } else {
         $programFrame = Remove-EmptyPlaceholders -Content $programFrame
+        $compilerParameters.CompilerOptions += $parameterDefinitions
         $cr = $codeProvider.CompileAssemblyFromSource($compilerParameters, $programFrame)
         if ($cr.Errors.Count -gt 0) {
             if (Test-Path -LiteralPath $OutputFile) {
