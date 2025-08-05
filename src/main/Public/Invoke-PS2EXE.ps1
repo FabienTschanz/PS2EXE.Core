@@ -159,11 +159,6 @@
 
     Start graphical front end to Invoke-PS2EXE.
 
-.NOTES
-    Version: 0.1.0
-    Date: 2025-08-03
-    Author: Ingo Karstein, Markus Scholtes, Fabien Tschanz
-
 .LINK
     https://github.com/FabienTschanz/PS2EXE.Core
 
