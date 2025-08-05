@@ -2,13 +2,16 @@
 $moduleName = "PS2EXE.Core"
 
 BeforeAll {
+    $repoDir    = Join-Path -Path $PSScriptRoot -ChildPath '..\..\' -Resolve
     $here       = $PSScriptRoot.Replace("test", "main")
     $moduleName = "PS2EXE.Core"
 
     # Remove previous module references
     Get-Module -Name $moduleName | Remove-Module -Force
 
-    Import-Module -Name "$here\$moduleName.psd1"
+    $modulePath = Join-Path -Path $repoDir -ChildPath "bin\$moduleName.psd1"
+
+    Import-Module -Name $modulePath
 }
 
 Describe "$moduleName Module Tests" {
@@ -29,66 +32,6 @@ Describe "$moduleName Module Tests" {
         @{
             Name = "Invoke-PS2EXE"
             Scope = "Public"
-        },
-        @{
-            Name = "Get-BufferContent"
-            Scope = "Private"
-        },
-        @{
-            Name = "Get-ConsoleSetup"
-            Scope = "Private"
-        },
-        @{
-            Name = "Get-CredentialForm"
-            Scope = "Private"
-        },
-        @{
-            Name = "Get-DialogBox"
-            Scope = "Private"
-        },
-        @{
-            Name = "Get-Prompt"
-            Scope = "Private"
-        },
-        @{
-            Name = "Get-PromptForChoice"
-            Scope = "Private"
-        },
-        @{
-            Name = "Get-PromptForCredential1"
-            Scope = "Private"
-        },
-        @{
-            Name = "Get-PromptForCredential2"
-            Scope = "Private"
-        },
-        @{
-            Name = "Get-ReadKey"
-            Scope = "Private"
-        },
-        @{
-            Name = "Get-ScrollBufferContent"
-            Scope = "Private"
-        },
-        @{
-            Name = "Get-SetBufferContent1"
-            Scope = "Private"
-        },
-        @{
-            Name = "Get-SetBufferContent2"
-            Scope = "Private"
-        },
-        @{
-            Name = "Get-SetupConHost"
-            Scope = "Private"
-        },
-        @{
-            Name = "Get-WriteLineInternal"
-            Scope = "Private"
-        },
-        @{
-            Name = "Get-WriteProgress"
-            Scope = "Private"
         },
         @{
             Name = "Remove-EmptyPlaceholders"

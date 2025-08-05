@@ -11,6 +11,14 @@
             "script": "Import-Module -Name \"${workspaceFolder}/src/test/TestHarness.psm1\"; Invoke-TestHarness",
             "args": [],
             "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "PowerShell: Build Module",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceFolder}/build.ps1 -Clean",
+            "args": [],
+            "cwd": "${workspaceFolder}"
         }
     ]
 }

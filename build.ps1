@@ -53,7 +53,7 @@ $script = @(
 )
 
 $files = Get-ChildItem $script -File | Select-Object -Unique
-$sb = [System.Text.StringBuilder]""
+$sb = [System.Text.StringBuilder]::new()
 
 foreach ($file in $files) {
     $lines = Get-Content $file
@@ -63,6 +63,9 @@ foreach ($file in $files) {
         $sb.AppendLine($l) | Out-Null
     }
 }
+
+$psm1Content = Get-Content "$PSScriptRoot/bin/PS2EXE.Core.psm1" -Raw
+$sb.AppendLine($psm1Content) | Out-Null
 
 $sb.ToString() | Set-Content "$PSScriptRoot/bin/PS2EXE.Core.psm1" -Encoding UTF8
 
