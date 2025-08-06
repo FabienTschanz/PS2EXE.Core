@@ -5,7 +5,7 @@
     <TargetFramework>{{TargetFramework}}{{TargetOS}}</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
-    <PublishSingleFile>false</PublishSingleFile>
+    <PublishSingleFile>{{PublishSingleFile}}</PublishSingleFile>
     <RuntimeIdentifier>{{RuntimeIdentifier}}</RuntimeIdentifier>
     <SelfContained>{{SelfContained}}</SelfContained>
     <UseWindowsForms>{{UseWindowsForms}}</UseWindowsForms>
