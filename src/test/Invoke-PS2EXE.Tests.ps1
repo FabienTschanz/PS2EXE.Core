@@ -35,7 +35,7 @@ Describe "$moduleName Invoke-PS2EXE Tests" {
         It "should compile a PowerShell script to an executable" -Skip:($IsCoreCLR -eq $true) {
             $resourcesPath = Join-Path -Path $rootPath -ChildPath 'resources'
             $scriptPath = Join-Path -Path $resourcesPath -ChildPath 'TestScript.ps1'
-            $exePath = Join-Path -Path $rootPath -ChildPath 'bin\output\TestScript.exe'
+            $exePath = Join-Path -Path $rootPath -ChildPath 'bin\TestScript.exe'
 
             Invoke-PS2EXE -InputFile $scriptPath -OutputFile $exePath -Verbose
 
