@@ -144,6 +144,11 @@
     If this switch is set, the resulting executable will be self-contained and include the .NET runtime.
     This is only applicable when compiling for .NET Core. Increases the size of the executable significantly.
 
+.PARAMETER PublishSingleFile
+    If this switch is set, the resulting executable will be published as a single file.
+    This is only applicable when compiling for .NET Core. Note that this may not work with all scripts,
+    especially those that rely on external files or resources. External files will not be included in the single file executable.
+
 .EXAMPLE
     PS> Invoke-PS2EXE C:\Data\MyScript.ps1
 
@@ -327,7 +332,11 @@ function Invoke-PS2EXE {
 
         [Parameter(ParameterSetName = 'Core')]
         [switch]
-        $SelfContained
+        $SelfContained,
+
+        [Parameter(ParameterSetName = 'Core')]
+        [switch]
+        $PublishSingleFile
     )
 
     if (-not $Nested) {
@@ -596,6 +605,7 @@ function Invoke-PS2EXE {
         $csProjFile = $csProjFile -replace "{{TargetFramework}}", $TargetFramework
         $csProjFile = $csProjFile -replace "{{PowerShellVersion}}", $PowerShellVersion
         $csProjFile = $csProjFile -replace "{{SelfContained}}", $SelfContained
+        $csProjFile = $csProjFile -replace "{{PublishSingleFile}}", $PublishSingleFile
         $csProjFile = $csProjFile -replace "{{UseWindowsForms}}", ($NoConsole -or $CredentialGUI)
         $csProjFile = $csProjFile -replace "{{DefineConstants}}", $constants -join ';'
         if ($NoConsole) {

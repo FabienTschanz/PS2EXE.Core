@@ -69,4 +69,8 @@ function Test-Arguments {
     if ($Arguments.STA -and $Arguments.MTA) {
         throw 'You cannot use switches -STA and -MTA at the same time!'
     }
+
+    if ($Arguments.PublishSingleFile -and $PSVersionTable.PSVersion -lt [Version]'7.6.0') {
+        throw '-PublishSingleFile requires PowerShell 7.6.0 or higher because of a PowerShell bug.'
+    }
 }
