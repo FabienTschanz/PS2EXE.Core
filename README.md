@@ -31,8 +31,9 @@ Invoke-PS2EXE [-InputFile] 'file.ps1' [[-OutputFile] 'file.exe'] [-PrepareDebug]
 [-lcid <Int32>] [-STA] [-MTA] [-Nested] [-NoConsole] [-ConHost] [-UnicodeEncoding] [-CredentialGUI]
 [-IconFile <String>] [-Title <String>] [-Description <String>] [-Company <String>] [-Product <String>]
 [-Copyright <String>] [-Trademark <String>] [-Version <String>] [-ConfigFile] [-NoOutput] [-NoError]
-[-NoVisualStyles] [-ExitOnCancel] [-DPIAware] [-WinFormsDPIAware] [-RequireAdmin] [-SupportOS]
-[-Virtualize] [-LongPaths] [<CommonParameters>]
+[-NoVisualStyles] [-ExitOnCancel] [-DPIAware] [-WinFormsDPIAware] [-RequireAdmin] [-SupportOS] [-Virtualize]
+[-LongPaths] [-Core] [-TargetOS <String>] [-TargetFramework <String>] [-PowerShellVersion <Version>]
+[-SelfContained] [-PublishSingleFile] [<CommonParameters>]
 ```
 
 Full help is available using `Get-Help -Name Invoke-PS2EXE -Full`, with detailed explanation about what each parameter does and extensive examples for the different types of combinations. Validation is in place to prevent compiling an invalid executable and build errors.

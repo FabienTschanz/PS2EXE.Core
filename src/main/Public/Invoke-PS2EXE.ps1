@@ -327,7 +327,7 @@ function Invoke-PS2EXE {
         $TargetFramework = 'net9.0',
 
         [Parameter(ParameterSetName = 'Core')]
-        [System.String]
+        [System.Version]
         $PowerShellVersion = '7.5.2',
 
         [Parameter(ParameterSetName = 'Core')]
