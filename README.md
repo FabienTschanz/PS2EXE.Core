@@ -54,12 +54,23 @@ A generated executable has the following reserved parameters:
 
 ## Remarks
 
-### Use of Powershell Core:
+### Powershell Core
 PS2EXE.Core fully supports PowerShell Core. If you want to build a script to run for PowerShell Core, you need to have the .NET CLI installed. You can download it from [here](https://dotnet.microsoft.com/en-us/download). This also means that you can build an application cross-platform style directly on Linux or macOS (if you wish to do so).
 
-If you want to build an application for Windows PowerShell 5.x, PS2EXE.Core will automatically launch a new Windows PowerShell session to compile the executable. This requires Windows as the operating system.
+If you want to build an application for Windows PowerShell 5.x, PS2EXE.Core will automatically launch a new Windows PowerShell session to compile the executable. This requires Windows as the operating system, Linux or macOS are not supported to target Windows PowerShell 5.x.
 
 Depending on the PowerShell Core version you're using, you have to also specify the corresponding .NET version. An example is for PowerShell 7.4, .NET 8 is enough. But if you want to use PowerShell 7.5, you already have to use .NET 9. More information about the required .NET version can usually be found on the [releases page of the PowerShell repository](https://github.com/PowerShell/PowerShell/releases) (see `Build and Packaging Improvements > Update to .NET SDK X.Y.ZZZ`)
+
+A full list of PowerShell Core versions and its requirements are described below. If you do not specify the targeted PowerShell Core version, PS2EXE.Core will automatically detect the currently installed version (PowerShell Core or .NET SDK) and apply the latest supported version for this SDK. If you wish to override any of those default settings, you can do so using the `-TargetFramework` or `-PowerShellVersion` parameters. If you specify an incompatible combination of target framework and PowerShell version, PS2EXE.Core will not start the compilation process because the generated executable will not function properly.
+
+| PowerShell Version | Minimal .NET SDK |
+|---|---|
+| 7.2 (LTS, EOL) | [6.0.0](https://dotnet.microsoft.com/en-us/download/dotnet/6.0) |
+| 7.3 (EOL) | [7.0.0](https://github.com/PowerShell/PowerShell/releases/tag/v7.3.12) |
+| 7.4 (LTS) | [8.0.0](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) |
+| 7.5 | [9.0.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0) |
+
+It is strongly recommended to update to the latest PowerShell version as soon as it is released.
 
 ### List of not implemented cmdlets:
 

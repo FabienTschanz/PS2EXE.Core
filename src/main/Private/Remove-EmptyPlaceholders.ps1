@@ -10,7 +10,7 @@
     The content from which to remove empty placeholders.
 
 .EXAMPLE
-    $result = Remove-EmptyPlaceHolders -Content "This is a {{placeholder}}."
+    PS> $result = Remove-EmptyPlaceholders -Content "This is a {{placeholder}}."
     $result will be "This is a ."
 
 .OUTPUTS
