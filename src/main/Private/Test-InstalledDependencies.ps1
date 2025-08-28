@@ -18,12 +18,23 @@
 function Test-InstalledDependencies {
     [CmdletBinding()]
     [OutputType([System.Boolean])]
-    param ()
+    param (
+        [Parameter(Mandatory = $false)]
+        [version]
+        $RequiredNetSdkVersion = '6.0.301'
+    )
 
     # Check if .NET SDK is installed
-    $dotnetVersion = dotnet --version 2>$null
-    if (-not $dotnetVersion) {
-        Write-Error "The .NET SDK is not installed. Please install it from https://dotnet.microsoft.com/en-us/download."
+    [array]$dotnetVersions = (dotnet --list-sdks 2>$null) -split "`n"
+    $downloadLinkBase = "https://dotnet.microsoft.com/en-us/download"
+    if ($dotnetVersions.Count -eq 0) {
+        Write-Error "The .NET SDK is not installed. Please install it from $downloadLinkBase."
+        return $false
+    }
+
+    $versionsOnSameMajor = $dotnetVersions | Where-Object { $_ -like "$($RequiredNetSdkVersion.Major).*" }
+    if ($versionsOnSameMajor.Count -eq 0) {
+        Write-Error "The installed .NET SDK versions ($($dotnetVersions -join ', ')) do not match the required version ($RequiredNetSdkVersion). Please install it from $downloadLinkBase/$($RequiredNetSdkVersion.Major).0."
         return $false
     }
 
@@ -33,6 +44,6 @@ function Test-InstalledDependencies {
         return $false
     }
 
-    Write-Host "All required dependencies are installed."
+    Write-Verbose -Message "All required dependencies are installed."
     return $true
 }

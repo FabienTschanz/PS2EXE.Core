@@ -73,4 +73,24 @@ function Test-Arguments {
     if ($Arguments.PublishSingleFile -and $PSVersionTable.PSVersion -lt [Version]'7.6.0') {
         throw '-PublishSingleFile requires PowerShell 7.6.0 or higher because of a PowerShell bug.'
     }
+
+    $isInstalled = $true
+    if ($Arguments.TargetFramework -and -not $Arguments.PowerShellVersion) {
+        $isInstalled = Test-InstalledDependencies -RequiredNetSdkVersion $Arguments.TargetFramework.Replace('net', '')
+    }
+
+    if ($Arguments.PowerShellVersion) {
+        $versionMapping = Get-VersionMapping -PowerShellVersion $Arguments.PowerShellVersion
+        if ($Arguments.TargetFramework) {
+            if ($versionMapping.NetSdkVersion.Major -gt ([version]$Arguments.TargetFramework.Replace('net', '')).Major) {
+                throw "The specified TargetFramework $($Arguments.TargetFramework) is not compatible with the specified PowerShellVersion $($Arguments.PowerShellVersion).
+                The minimum required TargetFramework for PowerShell $($Arguments.PowerShellVersion) is net$($versionMapping.NetSdkVersion.Major)."
+            }
+        }
+        $isInstalled = Test-InstalledDependencies -RequiredNetSdkVersion $versionMapping.NetSdkVersion
+    }
+
+    if (-not $isInstalled) {
+        throw 'Not all dependencies are installed.'
+    }
 }

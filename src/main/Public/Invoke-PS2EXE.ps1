@@ -324,11 +324,12 @@ function Invoke-PS2EXE {
         [Parameter(ParameterSetName = 'Core')]
         [ValidateSet('net6.0', 'net7.0', 'net8.0', 'net9.0')]
         [System.String]
-        $TargetFramework = 'net9.0',
+        $TargetFramework,
 
         [Parameter(ParameterSetName = 'Core')]
+        [ValidateSet('7.2.5', '7.2.8', '7.3.4', '7.3.5', '7.4.2', '7.4.5', '7.5.0', '7.5.1', '7.5.2')]
         [System.Version]
-        $PowerShellVersion = '7.5.2',
+        $PowerShellVersion,
 
         [Parameter(ParameterSetName = 'Core')]
         [switch]
@@ -374,6 +375,24 @@ function Invoke-PS2EXE {
 
         powershell -Command "if ((Get-Command -Name 'Invoke-PS2EXE' -ErrorAction 'SilentlyContinue').Length -eq 0) { Import-Module '$PSScriptRoot\PS2EXE.Core.psm1' }; &'$($MyInvocation.MyCommand.Name)' $callParam"
         return
+    }
+
+    if ($PSCmdlet.ParameterSetName -eq 'Core') {
+        if (-not $PSBoundParameters.ContainsKey('PowerShellVersion')) {
+            $latestVersionCombination = Get-LatestVersionCombination
+            if ($null -eq $latestVersionCombination) {
+                throw 'Failed to automatically determine the PowerShell and .NET SDK version combination. Please specify it manually.'
+            }
+
+            $PowerShellVersion = $latestVersionCombination.PowerShellVersion
+            $TargetFramework = "net$($latestVersionCombination.NetSdkVersion.Major).0"
+        }
+
+        if (-not $PSBoundParameters.ContainsKey('TargetFramework')) {
+            $TargetFramework = "net$((Get-VersionMapping -PowerShellVersion $PowerShellVersion).NetSdkVersion.Major).0"
+        }
+
+        Write-Output "Determined PowerShell version $PowerShellVersion and .NET SDK version $TargetFramework. Target Platform is $TargetOS."
     }
 
     # Retrieve absolute paths independent if path is given relative oder absolute
@@ -618,9 +637,19 @@ function Invoke-PS2EXE {
         $csProjFile | Set-Content -Path $csProjPath -Encoding UTF8
 
         $outputDirectory = Join-Path -Path $outputDirectory -ChildPath 'Release'
-        dotnet publish $csProjPath -c Release -o $outputDirectory
+        if ($VerbosePreference -eq 'Continue') {
+            dotnet publish $csProjPath -c Release -o $outputDirectory -v d
+        } else {
+            dotnet publish $csProjPath -c Release -o $outputDirectory -v q --property WarningLevel=0 /clp:ErrorsOnly
+        }
+
         if ($LASTEXITCODE -ne 0) {
             throw "dotnet build failed with exit code $LASTEXITCODE"
+        }
+
+        Write-Output "Successfully built project in $outputDirectory."
+        if (-not $PSBoundParameters.ContainsKey('PublishSingleFile')) {
+            Write-Output "If you want to package the executable into a single file, use the -PublishSingleFile parameter. This only works with PowerShell 7.6.0 or higher."
         }
         Remove-Item -Path $csProjPath -Force -ErrorAction SilentlyContinue
         Remove-Item -Path $scriptCsPath -Force -ErrorAction SilentlyContinue
