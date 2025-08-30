@@ -392,6 +392,16 @@ function Invoke-PS2EXE {
             $TargetFramework = "net$((Get-VersionMapping -PowerShellVersion $PowerShellVersion).NetSdkVersion.Major).0"
         }
 
+        if (-not $PSBoundParameters.ContainsKey('TargetOS')) {
+            if ($IsLinux) {
+                $TargetOS = 'Linux'
+            } elseif ($IsMacOS) {
+                $TargetOS = 'MacOS'
+            } else {
+                $TargetOS = 'Windows'
+            }
+        }
+
         Write-Output "Determined PowerShell version $PowerShellVersion and .NET SDK version $TargetFramework. Target Platform is $TargetOS."
     }
 
@@ -585,6 +595,7 @@ function Invoke-PS2EXE {
 
     Write-Output "Compiling file...`n"
     if ($Core) {
+        [System.Environment]::SetEnvironmentVariable('DOTNET_CLI_TELEMETRY_OPTOUT', '1', 'User')
         $outputDirectory = [System.IO.Path]::GetDirectoryName($OutputFile)
         $outputFileName = [System.IO.Path]::GetFileNameWithoutExtension($OutputFile)
         $programFrame = $programFrame -replace "{{ResourcePrefix}}", "$outputFileName."
