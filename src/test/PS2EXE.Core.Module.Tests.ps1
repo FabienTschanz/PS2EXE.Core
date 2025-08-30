@@ -34,6 +34,14 @@ Describe "$moduleName Module Tests" {
             Scope = "Public"
         },
         @{
+            Name = "Get-VersionMapping"
+            Scope = "Private"
+        },
+        @{
+            Name = "Get-LatestVersionCombination"
+            Scope = "Private"
+        }
+        @{
             Name = "Remove-EmptyPlaceholders"
             Scope = "Private"
         },
@@ -43,6 +51,14 @@ Describe "$moduleName Module Tests" {
         },
         @{
             Name = "Test-InstalledDependencies"
+            Scope = "Private"
+        },
+        @{
+            Name = "Test-RequiresWinForms"
+            Scope = "Private"
+        },
+        @{
+            Name = "Test-ScriptFile"
             Scope = "Private"
         }
     )

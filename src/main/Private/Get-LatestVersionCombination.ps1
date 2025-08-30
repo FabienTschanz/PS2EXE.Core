@@ -5,6 +5,9 @@
 .DESCRIPTION
     This function checks the installed versions of PowerShell and .NET SDK, and returns the latest compatible version combination.
 
+.EXAMPLE
+    PS> Get-LatestVersionCombination
+
 .OUTPUTS
     [PSCustomObject] A custom object containing the latest PowerShell and .NET SDK versions.
 #>
