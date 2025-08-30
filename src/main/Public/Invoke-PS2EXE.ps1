@@ -534,6 +534,9 @@ function Invoke-PS2EXE {
     }
 
     Write-Output "Reading input file $InputFile"
+    if (-not (Test-ScriptFile -FilePath $InputFile)) {
+        throw "Input file $InputFile contains errors, aborting compilation!"
+    }
     [void]$compilerParameters.EmbeddedResources.Add($InputFile)
 
     $mainCsPath = Join-Path -Path $PSScriptRoot 'main.cs'
@@ -588,11 +591,7 @@ function Invoke-PS2EXE {
         $programFrame = Remove-EmptyPlaceholders -Content $programFrame
         New-Item -Path $outputDirectory -ItemType Directory -Force | Out-Null
         $scriptFilePath = [System.IO.Path]::Combine($outputDirectory, [System.IO.Path]::GetFileName($InputFile))
-        if (-not (Test-Path -Path $scriptFilePath)) {
-            Copy-Item -Path $InputFile -Destination $scriptFilePath -Force
-        } else {
-            Write-Output "Input file already exists in output directory, skipping copy."
-        }
+        Copy-Item -Path $InputFile -Destination $scriptFilePath -Force
         $scriptCsPath = [System.IO.Path]::Combine($outputDirectory, "$($outputFileName).cs")
         $programFrame | Set-Content -Path $scriptCsPath -Encoding UTF8
         $csProjPath = [System.IO.Path]::Combine($outputDirectory, "$($outputFileName).csproj")
@@ -619,15 +618,16 @@ function Invoke-PS2EXE {
                 $runtimeIdentifier = 'osx-x64'
             }
         }
+        $requiresWinForms = Test-RequiresWinForms -FilePath $InputFile
         $csProjFile = $csProjFile -replace "{{InputFile}}", ([System.IO.Path]::GetFileName($InputFile))
         $csProjFile = $csProjFile -replace "{{RuntimeIdentifier}}", $runtimeIdentifier
         $csProjFile = $csProjFile -replace "{{TargetFramework}}", $TargetFramework
         $csProjFile = $csProjFile -replace "{{PowerShellVersion}}", $PowerShellVersion
         $csProjFile = $csProjFile -replace "{{SelfContained}}", $SelfContained
         $csProjFile = $csProjFile -replace "{{PublishSingleFile}}", $PublishSingleFile
-        $csProjFile = $csProjFile -replace "{{UseWindowsForms}}", ($NoConsole -or $CredentialGUI)
+        $csProjFile = $csProjFile -replace "{{UseWindowsForms}}", ($NoConsole -or $CredentialGUI -or $requiresWinForms)
         $csProjFile = $csProjFile -replace "{{DefineConstants}}", $constants -join ';'
-        if ($NoConsole) {
+        if ($NoConsole -or $requiresWinForms) {
             $csProjFile = $csProjFile -replace "{{OutputType}}", 'WinExe'
             $csProjFile = $csProjFile -replace "{{TargetOS}}", '-windows'
         } else {
