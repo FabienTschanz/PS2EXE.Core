@@ -12,7 +12,7 @@
     RootModule             = 'PS2EXE.Core.psm1'
 
     # Version number of this module.
-    ModuleVersion          = '0.3.0'
+    ModuleVersion          = '0.4.0'
 
     # Supported PSEditions
     # CompatiblePSEditions = @()
@@ -108,6 +108,7 @@ Or use Win-PS2EXE as a graphical front end to the compiler.
             Tags         = @(
                 'Compiler',
                 'Core',
+                'PS2EXE.Core',
                 'Executable',
                 'PowerShell',
                 'ps2exe',
@@ -125,6 +126,15 @@ Or use Win-PS2EXE as a graphical front end to the compiler.
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+# Version 0.4.0
+* Added PowerShell and .NET SDK autodetect behavior.
+* Added script validation before compilation.
+* Fixed an issue where using System.Windows.Forms dialogs in PowerShell Core
+  would fail because the namespace is not available.
+* Fixed an issue where compiling a script with the same name multiple times
+  would not include the latest changes to the script.
+* Improved cross-platform compilation support.
+
 # Version 0.3.0
 * Added support for single file publishing with the -PublishSingleFile switch.
 
