@@ -40,6 +40,9 @@ function Test-RequiresWinForms {
 
     $requiresWinForms = $false
     if ($tokens.Value -contains "System.Windows.Forms") {
+        if ($IsLinux -or $IsMacOS) {
+            throw "The script requires System.Windows.Forms, which is not supported on Linux or macOS."
+        }
         $requiresWinForms = $true
 
         if ($tokens.Value -contains "Write-Output" -or $tokens.Value -contains "Write-Host") {

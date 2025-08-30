@@ -6,6 +6,12 @@
     This function checks if the necessary dependencies for building a .NET Core PowerShell script with PS2EXE are installed on the system.
     It verifies the presence of the .NET SDK and the required PowerShell version.
 
+.PARAMETER RequiredNetSdkVersion
+    The required .NET SDK version that must be installed.
+
+.PARAMETER VerifyDotnetTool
+    If specified, verifies that the .NET CLI (dotnet) is installed and available in the system PATH.
+
 .EXAMPLE
     PS> Test-InstalledDependencies
 
@@ -21,8 +27,20 @@ function Test-InstalledDependencies {
     param (
         [Parameter(Mandatory = $false)]
         [version]
-        $RequiredNetSdkVersion = '6.0.301'
+        $RequiredNetSdkVersion = '6.0.301',
+
+        [Parameter(Mandatory = $false)]
+        [switch]
+        $VerifyDotnetTool
     )
+
+    if ($VerifyDotnetTool) {
+        $command = Get-Command -Name dotnet -ErrorAction SilentlyContinue
+        if ($null -eq $command) {
+            return $false
+        }
+        return $true
+    }
 
     # Check if .NET SDK is installed
     [array]$dotnetVersions = (dotnet --list-sdks 2>$null) -split "`n"

@@ -54,6 +54,10 @@ function Test-Arguments {
         throw '-NoConsole can only be used with -TargetOS Windows'
     }
 
+    if ($Arguments.NoConsole -and ($IsLinux -or $IsMacOS)) {
+        throw '-NoConsole is only supported on a Windows platform.'
+    }
+
     if ($Arguments.RequireAdmin -and $Arguments.Virtualize) {
         throw '-RequireAdmin cannot be combined with -Virtualize'
     }
@@ -68,6 +72,12 @@ function Test-Arguments {
 
     if ($Arguments.STA -and $Arguments.MTA) {
         throw 'You cannot use switches -STA and -MTA at the same time!'
+    }
+
+    if ($Arguments.Core) {
+        if (-not (Test-InstalledDependencies -VerifyDotnetTool)) {
+            throw 'The .NET CLI (dotnet) is not installed or not in the system PATH.'
+        }
     }
 
     if ($Arguments.PublishSingleFile -and $PSVersionTable.PSVersion -lt [Version]'7.6.0') {
