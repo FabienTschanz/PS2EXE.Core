@@ -638,6 +638,38 @@ function Invoke-PS2EXE {
         $csProjFile = $csProjFile -replace "{{PublishSingleFile}}", $PublishSingleFile
         $csProjFile = $csProjFile -replace "{{UseWindowsForms}}", ($NoConsole -or $CredentialGUI -or $requiresWinForms)
         $csProjFile = $csProjFile -replace "{{DefineConstants}}", $constants -join ';'
+
+        if (-not ([System.String]::IsNullOrEmpty($IconFile))) {
+            $iconDestination = [System.IO.Path]::Combine($outputDirectory, [System.IO.Path]::GetFileName($IconFile))
+            Copy-Item -Path $IconFile -Destination $iconDestination -Force
+            $csProjFile = $csProjFile -replace "{{ApplicationIcon}}", ([System.IO.Path]::GetFileName($IconFile))
+        }
+
+        if ($RequireAdmin -or $DPIAware -or $SupportOS -or $LongPaths) {
+            $manifestFileName = "$($outputFileName).manifest"
+            $manifestPath = [System.IO.Path]::Combine($outputDirectory, $manifestFileName)
+            $coreManifest = "<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>`r`n<assembly xmlns=""urn:schemas-microsoft-com:asm.v1"" manifestVersion=""1.0"">`r`n"
+            if ($DPIAware -or $LongPaths) {
+                $coreManifest += "<application xmlns=""urn:schemas-microsoft-com:asm.v3"">`r`n<windowsSettings>`r`n"
+                if ($DPIAware) {
+                    $coreManifest += "<dpiAware xmlns=""http://schemas.microsoft.com/SMI/2005/WindowsSettings"">true</dpiAware>`r`n<dpiAwareness xmlns=""http://schemas.microsoft.com/SMI/2016/WindowsSettings"">PerMonitorV2</dpiAwareness>`r`n"
+                }
+                if ($LongPaths) {
+                    $coreManifest += "<longPathAware xmlns=""http://schemas.microsoft.com/SMI/2016/WindowsSettings"">true</longPathAware>`r`n"
+                }
+                $coreManifest += "</windowsSettings>`r`n</application>`r`n"
+            }
+            if ($RequireAdmin) {
+                $coreManifest += "<trustInfo xmlns=""urn:schemas-microsoft-com:asm.v2"">`r`n<security>`r`n<requestedPrivileges xmlns=""urn:schemas-microsoft-com:asm.v3"">`r`n<requestedExecutionLevel level=""requireAdministrator"" uiAccess=""false""/>`r`n</requestedPrivileges>`r`n</security>`r`n</trustInfo>`r`n"
+            }
+            if ($SupportOS) {
+                $coreManifest += "<compatibility xmlns=""urn:schemas-microsoft-com:compatibility.v1"">`r`n<application>`r`n<supportedOS Id=""{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}""/>`r`n<supportedOS Id=""{1f676c76-80e1-4239-95bb-83d0f6d0da78}""/>`r`n<supportedOS Id=""{4a2f28e3-53b9-4441-ba9c-d69d4a4a6e38}""/>`r`n<supportedOS Id=""{35138b9a-5d96-4fbd-8e2d-a2440225f93a}""/>`r`n<supportedOS Id=""{e2011457-1546-43c5-a5fe-008deee3d3f0}""/>`r`n</application>`r`n</compatibility>`r`n"
+            }
+            $coreManifest += '</assembly>'
+            $coreManifest | Set-Content $manifestPath -Encoding UTF8
+            $csProjFile = $csProjFile -replace "{{ApplicationManifest}}", $manifestFileName
+        }
+
         if ($NoConsole -or $requiresWinForms) {
             $csProjFile = $csProjFile -replace "{{OutputType}}", 'WinExe'
             $csProjFile = $csProjFile -replace "{{TargetOS}}", '-windows'
@@ -664,6 +696,12 @@ function Invoke-PS2EXE {
         }
         Remove-Item -Path $csProjPath -Force -ErrorAction SilentlyContinue
         Remove-Item -Path $scriptCsPath -Force -ErrorAction SilentlyContinue
+        if (-not ([System.String]::IsNullOrEmpty($IconFile))) {
+            Remove-Item -Path $iconDestination -Force -ErrorAction SilentlyContinue
+        }
+        if ($RequireAdmin -or $DPIAware -or $SupportOS -or $LongPaths) {
+            Remove-Item -Path $manifestPath -Force -ErrorAction SilentlyContinue
+        }
     } else {
         $programFrame = Remove-EmptyPlaceholders -Content $programFrame
         $compilerParameters.CompilerOptions += $parameterDefinitions

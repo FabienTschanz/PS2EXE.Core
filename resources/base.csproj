@@ -18,6 +18,8 @@
     <StartupObject>ModuleNameSpace.MainApp</StartupObject>
     <SatelliteResourceLanguages>en-US;en</SatelliteResourceLanguages>
     <DefineConstants>{{DefineConstants}}</DefineConstants>
+    <ApplicationIcon>{{ApplicationIcon}}</ApplicationIcon>
+    <ApplicationManifest>{{ApplicationManifest}}</ApplicationManifest>
   </PropertyGroup>
 
   <ItemGroup>
