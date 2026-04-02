@@ -322,12 +322,12 @@ function Invoke-PS2EXE {
         $TargetOS = 'Windows',
 
         [Parameter(ParameterSetName = 'Core')]
-        [ValidateSet('net6.0', 'net7.0', 'net8.0', 'net9.0')]
+        [ValidateSet('net6.0', 'net7.0', 'net8.0', 'net9.0', 'net10.0')]
         [System.String]
         $TargetFramework,
 
         [Parameter(ParameterSetName = 'Core')]
-        [ValidateSet('7.2.5', '7.2.8', '7.3.4', '7.3.5', '7.4.2', '7.4.5', '7.5.0', '7.5.1', '7.5.2')]
+        [ValidateSet('7.2.5', '7.2.8', '7.3.4', '7.3.5', '7.4.2', '7.4.5', '7.5.0', '7.5.1', '7.5.2', '7.6.0')]
         [System.Version]
         $PowerShellVersion,
 
