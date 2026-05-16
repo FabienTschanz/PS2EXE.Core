@@ -20,6 +20,7 @@
     None. Throws an error if any of the arguments are invalid.
 #>
 function Test-Arguments {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification='This function is intentionally plural.')]
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
