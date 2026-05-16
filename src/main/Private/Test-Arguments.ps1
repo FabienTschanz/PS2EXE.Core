@@ -84,6 +84,28 @@ function Test-Arguments {
         throw '-PublishSingleFile requires PowerShell 7.6.0 or higher because of a PowerShell bug.'
     }
 
+    if ($Arguments.AOT) {
+        Write-Warning 'Native AOT is experimental. PowerShell SDK uses heavy reflection which may not be fully compatible with AOT compilation. Test thoroughly.'
+        if (-not $Arguments.Core) {
+            throw '-AOT requires the -Core switch.'
+        }
+        if (-not $Arguments.SelfContained) {
+            throw '-AOT requires -SelfContained to be set.'
+        }
+    }
+
+    if ($Arguments.Trimmed -and -not $Arguments.Core) {
+        throw '-Trimmed requires the -Core switch.'
+    }
+
+    if ($Arguments.ReadyToRun -and -not $Arguments.Core) {
+        throw '-ReadyToRun requires the -Core switch.'
+    }
+
+    if ($Arguments.InvariantGlobalization -and -not $Arguments.Core) {
+        throw '-InvariantGlobalization requires the -Core switch.'
+    }
+
     $isInstalled = $true
     if ($Arguments.TargetFramework -and -not $Arguments.PowerShellVersion) {
         $isInstalled = Test-InstalledDependencies -RequiredNetSdkVersion $Arguments.TargetFramework.Replace('net', '')

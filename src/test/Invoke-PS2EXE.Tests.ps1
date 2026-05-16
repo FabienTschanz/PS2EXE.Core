@@ -3,12 +3,12 @@ $moduleName = "PS2EXE.Core"
 
 BeforeAll {
     $here       = $PSScriptRoot.Replace("test", "main")
-    $rootPath   = Join-Path -Path $here -ChildPath '..\..\' -Resolve
+    $rootPath   = Join-Path -Path $here -ChildPath '../../' -Resolve
     $moduleName = "PS2EXE.Core"
 
     Get-Module -Name $moduleName | Remove-Module -Force
 
-    $modulePath = Join-Path -Path $rootPath -ChildPath "bin\$moduleName.psd1"
+    $modulePath = Join-Path -Path $rootPath -ChildPath "bin/$moduleName.psd1"
     if (-not (Test-Path -Path $modulePath)) {
         throw "Module path '$modulePath' does not exist. Ensure the module is built before running tests."
     }
@@ -35,7 +35,7 @@ Describe "$moduleName Invoke-PS2EXE Tests" {
         It "should compile a PowerShell script to an executable" -Skip:($IsCoreCLR -eq $true) {
             $resourcesPath = Join-Path -Path $rootPath -ChildPath 'resources'
             $scriptPath = Join-Path -Path $resourcesPath -ChildPath 'TestScript.ps1'
-            $exePath = Join-Path -Path $rootPath -ChildPath 'bin\TestScript.exe'
+            $exePath = Join-Path -Path $rootPath -ChildPath 'bin/TestScript.exe'
 
             Invoke-PS2EXE -InputFile $scriptPath -OutputFile $exePath -Verbose
 
@@ -49,9 +49,9 @@ Describe "$moduleName Invoke-PS2EXE Tests" {
         It "should compile a PowerShell script to Core executable" {
             $resourcesPath = Join-Path -Path $rootPath -ChildPath 'resources'
             $scriptPath = Join-Path -Path $resourcesPath -ChildPath 'TestScript.ps1'
-            $outputDir = Join-Path -Path $rootPath -ChildPath 'bin\output'
+            $outputDir = Join-Path -Path $rootPath -ChildPath 'bin/output'
             $exePath = Join-Path -Path $outputDir -ChildPath 'TestScript.exe'
-            $testPath = Join-Path -Path $outputDir -ChildPath 'Release\TestScript.exe'
+            $testPath = Join-Path -Path $outputDir -ChildPath 'Release/TestScript.exe'
 
             Invoke-PS2EXE -InputFile $scriptPath -OutputFile $exePath -Core
 

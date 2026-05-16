@@ -1,0 +1,28 @@
+name: Publish to PowerShell Gallery
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  PublishToGallery:
+    runs-on: windows-latest
+
+    # Only when run from the main repo
+    if: github.repository == 'FabienTschanz/PS2EXE.Core'
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Module
+        shell: pwsh
+        run: |
+          & ./build.ps1 -Clean
+
+      - name: Publish
+        shell: pwsh
+        env:
+          PUBLIC_NUGETAPIKEY: ${{ secrets.NugetAPIKey }}
+        run: |
+          Publish-Module -Path "./bin/PS2EXE.Core/" -NugetAPIKey $env:PUBLIC_NUGETAPIKEY
