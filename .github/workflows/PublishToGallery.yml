@@ -25,4 +25,5 @@ jobs:
         env:
           PUBLIC_NUGETAPIKEY: ${{ secrets.NugetAPIKey }}
         run: |
-          Publish-Module -Path "./bin/" -NugetAPIKey $env:PUBLIC_NUGETAPIKEY
+
+          Publish-Module -Path "./bin/PS2EXE.Core/" -NugetAPIKey $env:PUBLIC_NUGETAPIKEY

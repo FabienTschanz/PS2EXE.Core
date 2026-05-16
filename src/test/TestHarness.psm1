@@ -19,7 +19,7 @@ function Invoke-TestHarness
     $repoDir = Join-Path -Path $PSScriptRoot -ChildPath '../../' -Resolve
 
     $oldModPath = $env:PSModulePath
-    $env:PSModulePath = $env:PSModulePath + [System.IO.Path]::PathSeparator + (Join-Path -Path $repoDir -ChildPath 'bin')
+    $env:PSModulePath = $env:PSModulePath + [System.IO.Path]::PathSeparator + (Join-Path -Path $repoDir -ChildPath 'bin/PS2EXE.Core')
 
     $testCoverageFiles = @()
     if ($IgnoreCodeCoverage.IsPresent -eq $false)
@@ -29,7 +29,7 @@ function Invoke-TestHarness
         }
     }
 
-    Import-Module -Name "$repoDir/bin/PS2EXE.Core.psd1"
+    Import-Module -Name "$repoDir/bin/PS2EXE.Core/PS2EXE.Core.psd1"
     $testsToRun = @()
 
     # Run Unit Tests
@@ -92,7 +92,7 @@ function Invoke-TestHarness
     Write-Host -Object $message
 
     $env:PSModulePath = $oldModPath
-    Write-Host -Object 'Completed running all Microsoft365DSC Unit Tests'
+    Write-Host -Object 'Completed running all PS2EXE.Core Unit Tests'
 
     return $results
 }

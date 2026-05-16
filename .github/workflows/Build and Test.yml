@@ -33,7 +33,7 @@ jobs:
         shell: pwsh
         run: |
           Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
-          $results = Invoke-ScriptAnalyzer -Path "./bin" -Settings ./PSScriptAnalyzerSettings.psd1 -Recurse
+          $results = Invoke-ScriptAnalyzer -Path "./bin/PS2EXE.Core/" -Settings ./PSScriptAnalyzerSettings.psd1 -Recurse
           if ($results) {
             $results | Format-Table -AutoSize
             throw "PSScriptAnalyzer found $($results.Count) issue(s)."
@@ -42,12 +42,12 @@ jobs:
       - name: Validate Module Manifest
         shell: pwsh
         run: |
-          Test-ModuleManifest -Path ./bin/PS2EXE.Core.psd1
+          Test-ModuleManifest -Path ./bin/PS2EXE.Core/PS2EXE.Core.psd1
 
       - name: Validate Module Import
         shell: pwsh
         run: |
-          Import-Module ./bin/PS2EXE.Core.psd1 -Force -ErrorAction Stop
+          Import-Module ./bin/PS2EXE.Core/PS2EXE.Core.psd1 -Force -ErrorAction Stop
           $exportedFunctions = (Get-Module PS2EXE.Core).ExportedFunctions.Keys
           if ($exportedFunctions.Count -eq 0)
           {
