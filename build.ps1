@@ -35,17 +35,17 @@ function Copy-Content ($Content) {
 }
 
 $content = @(
-    , ("$PSScriptRoot/resources/base.csproj", "$PSScriptRoot/bin/")
-    , ("$PSScriptRoot/resources/main.cs", "$PSScriptRoot/bin/")
-    , ("$PSScriptRoot/src/main/PS2EXE.Core.psm1", "$PSScriptRoot/bin/")
-    , ("$PSScriptRoot/src/main/PS2EXE.Core.psd1", "$PSScriptRoot/bin/")
-    , ("$PSScriptRoot/src/main/Variables.json", "$PSScriptRoot/bin/")
-    , ("$PSScriptRoot/resources/Win-PS2EXE.exe", "$PSScriptRoot/bin/")
+    , ("$PSScriptRoot/resources/base.csproj", "$PSScriptRoot/bin/PS2EXE.Core/")
+    , ("$PSScriptRoot/resources/main.cs", "$PSScriptRoot/bin/PS2EXE.Core/")
+    , ("$PSScriptRoot/src/main/PS2EXE.Core.psm1", "$PSScriptRoot/bin/PS2EXE.Core/")
+    , ("$PSScriptRoot/src/main/PS2EXE.Core.psd1", "$PSScriptRoot/bin/PS2EXE.Core/")
+    , ("$PSScriptRoot/src/main/Variables.json", "$PSScriptRoot/bin/PS2EXE.Core/")
+    , ("$PSScriptRoot/resources/Win-PS2EXE.exe", "$PSScriptRoot/bin/PS2EXE.Core/")
 )
 
 Copy-Content -Content $content
 
-New-Item "$PSScriptRoot/bin" -ItemType Directory -Force | Out-Null
+New-Item "$PSScriptRoot/bin/PS2EXE.Core" -ItemType Directory -Force | Out-Null
 
 $script = @(
     "$PSScriptRoot/src/main/Private/*.ps1",
@@ -64,15 +64,15 @@ foreach ($file in $files) {
     }
 }
 
-$psm1Content = Get-Content "$PSScriptRoot/bin/PS2EXE.Core.psm1" -Raw
+$psm1Content = Get-Content "$PSScriptRoot/bin/PS2EXE.Core/PS2EXE.Core.psm1" -Raw
 $sb.AppendLine($psm1Content) | Out-Null
 
-$sb.ToString() | Set-Content "$PSScriptRoot/bin/PS2EXE.Core.psm1" -Encoding UTF8
+$sb.ToString() | Set-Content "$PSScriptRoot/bin/PS2EXE.Core/PS2EXE.Core.psm1" -Encoding UTF8
 
 $powershell = Get-Process -Id $PID | Select-Object -ExpandProperty Path
 
 if ($Load) {
-    & $powershell -Command "'Load: ' + (Measure-Command { Import-Module '$PSScriptRoot/bin/PS2EXE.Core.psd1' -ErrorAction Stop}).TotalMilliseconds + 'ms'"
+    & $powershell -Command "'Load: ' + (Measure-Command { Import-Module '$PSScriptRoot/bin/PS2EXE.Core/PS2EXE.Core.psd1' -ErrorAction Stop}).TotalMilliseconds + 'ms'"
     if (0 -ne $LASTEXITCODE) {
         throw "Failed to load PS2EXE.Core module!"
     }
