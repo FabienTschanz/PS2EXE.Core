@@ -13,3 +13,7 @@ try {
 } catch {
     throw 'Could not load Variables.json file.'
 }
+
+# Cache template files in module scope to avoid repeated disk I/O
+$Script:MainCsTemplate = Get-Content -Path "$PSScriptRoot\main.cs" -Raw -Encoding UTF8
+$Script:BaseCsprojTemplate = Get-Content -Path "$PSScriptRoot\base.csproj" -Raw -Encoding UTF8

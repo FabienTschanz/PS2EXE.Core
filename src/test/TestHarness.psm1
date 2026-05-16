@@ -16,7 +16,7 @@ function Invoke-TestHarness
 
     Write-Host -Object 'Running all PS2EXE.Core Unit Tests'
 
-    $repoDir = Join-Path -Path $PSScriptRoot -ChildPath '..\..\' -Resolve
+    $repoDir = Join-Path -Path $PSScriptRoot -ChildPath '../../' -Resolve
 
     $oldModPath = $env:PSModulePath
     $env:PSModulePath = $env:PSModulePath + [System.IO.Path]::PathSeparator + (Join-Path -Path $repoDir -ChildPath 'bin')
@@ -24,7 +24,7 @@ function Invoke-TestHarness
     $testCoverageFiles = @()
     if ($IgnoreCodeCoverage.IsPresent -eq $false)
     {
-        Get-ChildItem -Path "$repoDir\src\main\**\*.psm1" -Recurse | ForEach-Object {
+        Get-ChildItem -Path "$repoDir/src/main/**/*.psm1" -Recurse | ForEach-Object {
             $testCoverageFiles += $_.FullName
         }
     }
@@ -36,7 +36,7 @@ function Invoke-TestHarness
 
     # Common Tests
     $getChildItemParameters = @{
-        Path    = (Join-Path -Path $repoDir -ChildPath '\src\test')
+        Path    = (Join-Path -Path $repoDir -ChildPath 'src/test')
         Recurse = $true
         Filter  = '*.Tests.ps1'
     }

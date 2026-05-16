@@ -9,6 +9,11 @@
     <RuntimeIdentifier>{{RuntimeIdentifier}}</RuntimeIdentifier>
     <SelfContained>{{SelfContained}}</SelfContained>
     <UseWindowsForms>{{UseWindowsForms}}</UseWindowsForms>
+    <PublishTrimmed>{{PublishTrimmed}}</PublishTrimmed>
+    <TrimMode>{{TrimMode}}</TrimMode>
+    <PublishReadyToRun>{{PublishReadyToRun}}</PublishReadyToRun>
+    <InvariantGlobalization>{{InvariantGlobalization}}</InvariantGlobalization>
+    <PublishAot>{{PublishAot}}</PublishAot>
     <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
     <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
     <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
@@ -24,6 +29,22 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.PowerShell.SDK" Version="{{PowerShellVersion}}" />
+  </ItemGroup>
+
+  <!-- Preserve PowerShell reflection targets from trimming -->
+  <ItemGroup Condition="'{{PublishTrimmed}}' == 'true'">
+    <TrimmerRootAssembly Include="System.Management.Automation" />
+    <TrimmerRootAssembly Include="Microsoft.PowerShell.Commands.Diagnostics" />
+    <TrimmerRootAssembly Include="Microsoft.PowerShell.Commands.Management" />
+    <TrimmerRootAssembly Include="Microsoft.PowerShell.Commands.Utility" />
+    <TrimmerRootAssembly Include="Microsoft.PowerShell.ConsoleHost" />
+    <TrimmerRootAssembly Include="Microsoft.PowerShell.Security" />
+    <TrimmerRootAssembly Include="Microsoft.WSMan.Management" />
+  </ItemGroup>
+
+  <!-- If AOT compilation is enabled and .NETSDK is > 8, include System.Formats.Nrbf -->
+  <ItemGroup Condition="'{{PublishAot}}' == 'true' And $([MSBuild]::GetTargetFrameworkIdentifier('$(TargetFramework)')) == '.NETCoreApp' And $([MSBuild]::GetTargetFrameworkVersion('$(TargetFramework)')) >= '8.0'">
+    <PackageReference Include="System.Formats.Nrbf" Version="10.*"/>
   </ItemGroup>
 
   <ItemGroup>

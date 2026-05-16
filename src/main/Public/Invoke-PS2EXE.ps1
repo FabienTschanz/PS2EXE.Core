@@ -149,6 +149,29 @@
     This is only applicable when compiling for .NET Core. Note that this may not work with all scripts,
     especially those that rely on external files or resources. External files will not be included in the single file executable.
 
+.PARAMETER Trimmed
+    Enable IL trimming to reduce output binary size. Only applicable with -Core.
+    Uses 'partial' TrimMode by default (safe). PowerShell SDK reflection targets are preserved via TrimmerRootAssembly.
+
+.PARAMETER TrimMode
+    The trimming aggressiveness: 'partial' (default, safe) or 'full' (aggressive, may break reflection).
+    Only applicable when -Trimmed is set.
+
+.PARAMETER ReadyToRun
+    Pre-compile assemblies for faster startup (ReadyToRun/R2R). Trades slightly larger file for faster launch.
+    Only applicable with -Core.
+
+.PARAMETER InvariantGlobalization
+    Use invariant globalization mode, removing ICU libraries from self-contained builds.
+    Only applicable with -Core. Scripts relying on culture-specific formatting may break.
+
+.PARAMETER AOT
+    EXPERIMENTAL: Enable Native AOT compilation for smallest possible binary without JIT.
+    Requires -Core and -SelfContained. PowerShell SDK uses heavy reflection, not all scripts will work.
+
+.PARAMETER Quiet
+    Suppress all informational output during compilation. Only errors will be displayed.
+
 .EXAMPLE
     PS> Invoke-PS2EXE C:\Data\MyScript.ps1
 
@@ -337,12 +360,37 @@ function Invoke-PS2EXE {
 
         [Parameter(ParameterSetName = 'Core')]
         [switch]
-        $PublishSingleFile
+        $PublishSingleFile,
+
+        [Parameter(ParameterSetName = 'Core')]
+        [switch]
+        $Trimmed,
+
+        [Parameter(ParameterSetName = 'Core')]
+        [ValidateSet('partial', 'full')]
+        [System.String]
+        $TrimMode = 'partial',
+
+        [Parameter(ParameterSetName = 'Core')]
+        [switch]
+        $ReadyToRun,
+
+        [Parameter(ParameterSetName = 'Core')]
+        [switch]
+        $InvariantGlobalization,
+
+        [Parameter(ParameterSetName = 'Core')]
+        [switch]
+        $AOT,
+
+        [Parameter()]
+        [switch]
+        $Quiet
     )
 
-    if (-not $Nested) {
+    if (-not $Nested -and -not $Quiet) {
         Write-Output "PS2EXE-GUI v0.5.0.32 by Ingo Karstein, reworked and GUI support by Markus Scholtes, updated for PowerShell Core by Fabien Tschanz`n"
-    } else {
+    } elseif ($Nested -and -not $Quiet) {
         Write-Output "PowerShell Desktop environment started...`n"
     }
 
@@ -402,7 +450,9 @@ function Invoke-PS2EXE {
             }
         }
 
-        Write-Output "Determined PowerShell version $PowerShellVersion and .NET SDK version $TargetFramework. Target Platform is $TargetOS."
+        if (-not $Quiet) {
+            Write-Output "Determined PowerShell version $PowerShellVersion and .NET SDK version $TargetFramework. Target Platform is $TargetOS."
+        }
     }
 
     # Retrieve absolute paths independent if path is given relative oder absolute
@@ -445,13 +495,18 @@ function Invoke-PS2EXE {
         $STA = $true
     }
 
-    # escape escape sequences in version info
-    $Title = $Title -replace '\\', '\\'
-    $Product = $Product -replace '\\', '\\'
-    $Copyright = $Copyright -replace '\\', '\\'
-    $Trademark = $Trademark -replace '\\', '\\'
-    $Description = $Description -replace '\\', '\\'
-    $Company = $Company -replace '\\', '\\'
+    # Sanitize metadata values to prevent C# code injection
+    $metadataFields = @('Title', 'Product', 'Copyright', 'Trademark', 'Description', 'Company')
+    foreach ($field in $metadataFields) {
+        $value = Get-Variable -Name $field -ValueOnly
+        if (-not [System.String]::IsNullOrEmpty($value)) {
+            $value = $value -replace '\\', '\\'
+            $value = $value -replace '"', '\"'
+            $value = $value -replace "`r", ''
+            $value = $value -replace "`n", ''
+            Set-Variable -Name $field -Value $value
+        }
+    }
 
     if (-not [System.String]::IsNullOrEmpty($Version)) {
         # check for correct version number information
@@ -461,7 +516,7 @@ function Invoke-PS2EXE {
         }
     }
 
-    Write-Output ''
+    if (-not $Quiet) { Write-Output '' }
 
     $o = [System.Collections.Generic.Dictionary[System.String, System.String]]::new()
     $o.Add('CompilerVersion', 'v4.0')
@@ -509,31 +564,33 @@ function Invoke-PS2EXE {
     $manifestParam = ''
     if ($RequireAdmin -or $DPIAware -or $SupportOS -or $LongPaths) {
         $manifestParam = "`"/win32manifest:$($OutputFile+'.win32manifest')`""
-        $win32manifest = "<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>`r`n<assembly xmlns=""urn:schemas-microsoft-com:asm.v1"" manifestVersion=""1.0"">`r`n"
+        $manifestParts = [System.Collections.Generic.List[System.String]]::new()
+        $manifestParts.Add("<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>`r`n<assembly xmlns=""urn:schemas-microsoft-com:asm.v1"" manifestVersion=""1.0"">`r`n")
         if ($DPIAware -or $LongPaths) {
-            $win32manifest += "<application xmlns=""urn:schemas-microsoft-com:asm.v3"">`r`n<windowsSettings>`r`n"
+            $manifestParts.Add("<application xmlns=""urn:schemas-microsoft-com:asm.v3"">`r`n<windowsSettings>`r`n")
             if ($DPIAware) {
-                $win32manifest += "<dpiAware xmlns=""http://schemas.microsoft.com/SMI/2005/WindowsSettings"">true</dpiAware>`r`n<dpiAwareness xmlns=""http://schemas.microsoft.com/SMI/2016/WindowsSettings"">PerMonitorV2</dpiAwareness>`r`n"
+                $manifestParts.Add("<dpiAware xmlns=""http://schemas.microsoft.com/SMI/2005/WindowsSettings"">true</dpiAware>`r`n<dpiAwareness xmlns=""http://schemas.microsoft.com/SMI/2016/WindowsSettings"">PerMonitorV2</dpiAwareness>`r`n")
             }
             if ($LongPaths) {
-                $win32manifest += "<longPathAware xmlns=""http://schemas.microsoft.com/SMI/2016/WindowsSettings"">true</longPathAware>`r`n"
+                $manifestParts.Add("<longPathAware xmlns=""http://schemas.microsoft.com/SMI/2016/WindowsSettings"">true</longPathAware>`r`n")
             }
-            $win32manifest += "</windowsSettings>`r`n</application>`r`n"
+            $manifestParts.Add("</windowsSettings>`r`n</application>`r`n")
         }
         if ($RequireAdmin) {
-            $win32manifest += "<trustInfo xmlns=""urn:schemas-microsoft-com:asm.v2"">`r`n<security>`r`n<requestedPrivileges xmlns=""urn:schemas-microsoft-com:asm.v3"">`r`n<requestedExecutionLevel level=""requireAdministrator"" uiAccess=""false""/>`r`n</requestedPrivileges>`r`n</security>`r`n</trustInfo>`r`n"
+            $manifestParts.Add("<trustInfo xmlns=""urn:schemas-microsoft-com:asm.v2"">`r`n<security>`r`n<requestedPrivileges xmlns=""urn:schemas-microsoft-com:asm.v3"">`r`n<requestedExecutionLevel level=""requireAdministrator"" uiAccess=""false""/>`r`n</requestedPrivileges>`r`n</security>`r`n</trustInfo>`r`n")
         }
         if ($SupportOS) {
-            $win32manifest += "<compatibility xmlns=""urn:schemas-microsoft-com:compatibility.v1"">`r`n<application>`r`n<supportedOS Id=""{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}""/>`r`n<supportedOS Id=""{1f676c76-80e1-4239-95bb-83d0f6d0da78}""/>`r`n<supportedOS Id=""{4a2f28e3-53b9-4441-ba9c-d69d4a4a6e38}""/>`r`n<supportedOS Id=""{35138b9a-5d96-4fbd-8e2d-a2440225f93a}""/>`r`n<supportedOS Id=""{e2011457-1546-43c5-a5fe-008deee3d3f0}""/>`r`n</application>`r`n</compatibility>`r`n"
+            $manifestParts.Add("<compatibility xmlns=""urn:schemas-microsoft-com:compatibility.v1"">`r`n<application>`r`n<supportedOS Id=""{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}""/>`r`n<supportedOS Id=""{1f676c76-80e1-4239-95bb-83d0f6d0da78}""/>`r`n<supportedOS Id=""{4a2f28e3-53b9-4441-ba9c-d69d4a4a6e38}""/>`r`n<supportedOS Id=""{35138b9a-5d96-4fbd-8e2d-a2440225f93a}""/>`r`n<supportedOS Id=""{e2011457-1546-43c5-a5fe-008deee3d3f0}""/>`r`n</application>`r`n</compatibility>`r`n")
         }
-        $win32manifest += '</assembly>'
+        $manifestParts.Add('</assembly>')
+        $win32manifest = $manifestParts -join ''
         $win32manifest | Set-Content ($OutputFile + '.win32manifest') -Encoding UTF8
     }
 
     if (-not $Virtualize) {
         $compilerParameters.CompilerOptions = "/platform:$($platform) /target:$( if ($NoConsole -or $ConHost) { 'winexe' } else { 'exe' }) $($iconFileParam) $($manifestParam)"
     } else {
-        Write-Output 'Application virtualization is activated, forcing x86 platform.'
+        if (-not $Quiet) { Write-Output 'Application virtualization is activated, forcing x86 platform.' }
         $compilerParameters.CompilerOptions = "/platform:x86 /target:$( if ($NoConsole -or $ConHost) { 'winexe' } else { 'exe' } ) /nowin32manifest $($iconFileParam)"
     }
 
@@ -543,14 +600,13 @@ function Invoke-PS2EXE {
         $compilerParameters.TempFiles.KeepFiles = $true
     }
 
-    Write-Output "Reading input file $InputFile"
+    Write-Verbose "Reading input file $InputFile"
     if (-not (Test-ScriptFile -FilePath $InputFile)) {
         throw "Input file $InputFile contains errors, aborting compilation!"
     }
     [void]$compilerParameters.EmbeddedResources.Add($InputFile)
 
-    $mainCsPath = Join-Path -Path $PSScriptRoot 'main.cs'
-    $programFrame = Get-Content -Path $mainCsPath -Raw -Encoding UTF8
+    $programFrame = $Script:MainCsTemplate
     if ($lcid) {
         $programFrame = $programFrame -replace "{{lcid}}", $lcid
     }
@@ -565,16 +621,21 @@ function Invoke-PS2EXE {
         }
     }
 
-    $programFrame = $programFrame -replace "{{Title}}", $Title
-    $programFrame = $programFrame -replace "{{Product}}", $Product
-    $programFrame = $programFrame -replace "{{Copyright}}", $Copyright
-    $programFrame = $programFrame -replace "{{Trademark}}", $Trademark
-    $programFrame = $programFrame -replace "{{Description}}", $Description
-    $programFrame = $programFrame -replace "{{Company}}", $Company
-
-    $programFrame = $programFrame -replace "{{Culture}}", $culture
-    $programFrame = $programFrame -replace "{{FileName}}", [System.IO.Path]::GetFileName($InputFile)
-    $programFrame = $programFrame -replace "{{Version}}", $Version
+    $templateValues = @{
+        'Title'       = $Title
+        'Product'     = $Product
+        'Copyright'   = $Copyright
+        'Trademark'   = $Trademark
+        'Description' = $Description
+        'Company'     = $Company
+        'Culture'     = $culture
+        'FileName'    = [System.IO.Path]::GetFileName($InputFile)
+        'Version'     = $Version
+    }
+    $programFrame = [regex]::Replace($programFrame, '\{\{(Title|Product|Copyright|Trademark|Description|Company|Culture|FileName|Version)\}\}', {
+        param($match)
+        $templateValues[$match.Groups[1].Value]
+    })
 
     if ($WinFormsDPIAware) {
         $ConfigFileForEXE3 = "<?xml version=""1.0"" encoding=""utf-8"" ?>`r`n<configuration><startup><supportedRuntime version=""v4.0"" sku="".NETFramework,Version=v4.7"" /></startup>"
@@ -590,14 +651,31 @@ function Invoke-PS2EXE {
     }
     $ConfigFileForEXE3 += '</configuration>'
 
-    $baseCsPath = Join-Path -Path $PSScriptRoot 'base.csproj'
-    $csProjFile = Get-Content -Path $baseCsPath -Raw -Encoding UTF8
+    $csProjFile = $Script:BaseCsprojTemplate
 
-    Write-Output "Compiling file...`n"
+    Write-Verbose "Compiling file..."
     if ($Core) {
         [System.Environment]::SetEnvironmentVariable('DOTNET_CLI_TELEMETRY_OPTOUT', '1', 'User')
         $outputDirectory = [System.IO.Path]::GetDirectoryName($OutputFile)
         $outputFileName = [System.IO.Path]::GetFileNameWithoutExtension($OutputFile)
+
+        # Incremental compilation: skip rebuild if inputs haven't changed
+        $releaseDir = Join-Path -Path $outputDirectory -ChildPath 'Release'
+        $cacheHashPath = Join-Path -Path $outputDirectory -ChildPath '.ps2exe.hash'
+        $scriptContent = Get-Content -Path $InputFile -Raw -Encoding UTF8
+        $cacheInput = "$scriptContent|$TargetFramework|$PowerShellVersion|$runtimeIdentifier|$SelfContained|$PublishSingleFile|$Trimmed|$ReadyToRun|$InvariantGlobalization|$AOT|$NoConsole|$CredentialGUI"
+        $currentHash = [System.BitConverter]::ToString([System.Security.Cryptography.SHA256]::Create().ComputeHash([System.Text.Encoding]::UTF8.GetBytes($cacheInput))).Replace('-', '')
+
+        if ((Test-Path -Path $cacheHashPath) -and (Test-Path -Path $releaseDir)) {
+            $previousHash = (Get-Content -Path $cacheHashPath -Raw -ErrorAction SilentlyContinue).Trim()
+            if ($previousHash -eq $currentHash) {
+                if (-not $Quiet) {
+                    Write-Output "No changes detected, skipping rebuild. Output: $releaseDir"
+                }
+                return
+            }
+        }
+
         $programFrame = $programFrame -replace "{{ResourcePrefix}}", "$outputFileName."
         $programFrame = Remove-EmptyPlaceholders -Content $programFrame
         New-Item -Path $outputDirectory -ItemType Directory -Force | Out-Null
@@ -630,14 +708,26 @@ function Invoke-PS2EXE {
             }
         }
         $requiresWinForms = Test-RequiresWinForms -FilePath $InputFile
-        $csProjFile = $csProjFile -replace "{{InputFile}}", ([System.IO.Path]::GetFileName($InputFile))
-        $csProjFile = $csProjFile -replace "{{RuntimeIdentifier}}", $runtimeIdentifier
-        $csProjFile = $csProjFile -replace "{{TargetFramework}}", $TargetFramework
-        $csProjFile = $csProjFile -replace "{{PowerShellVersion}}", $PowerShellVersion
-        $csProjFile = $csProjFile -replace "{{SelfContained}}", $SelfContained
-        $csProjFile = $csProjFile -replace "{{PublishSingleFile}}", $PublishSingleFile
-        $csProjFile = $csProjFile -replace "{{UseWindowsForms}}", ($NoConsole -or $CredentialGUI -or $requiresWinForms)
-        $csProjFile = $csProjFile -replace "{{DefineConstants}}", $constants -join ';'
+
+        $csProjValues = @{
+            'InputFile'              = [System.IO.Path]::GetFileName($InputFile)
+            'RuntimeIdentifier'      = $runtimeIdentifier
+            'TargetFramework'        = $TargetFramework
+            'PowerShellVersion'      = "$PowerShellVersion"
+            'SelfContained'          = "$SelfContained"
+            'PublishSingleFile'      = "$PublishSingleFile"
+            'UseWindowsForms'        = "$($NoConsole -or $CredentialGUI -or $requiresWinForms)"
+            'DefineConstants'        = ($constants -join ';')
+            'PublishTrimmed'         = "$Trimmed"
+            'TrimMode'              = if ($Trimmed) { $TrimMode } else { '' }
+            'PublishReadyToRun'      = "$ReadyToRun"
+            'InvariantGlobalization' = "$InvariantGlobalization"
+            'PublishAot'            = "$AOT"
+        }
+        $csProjFile = [regex]::Replace($csProjFile, '\{\{(InputFile|RuntimeIdentifier|TargetFramework|PowerShellVersion|SelfContained|PublishSingleFile|UseWindowsForms|DefineConstants|PublishTrimmed|TrimMode|PublishReadyToRun|InvariantGlobalization|PublishAot)\}\}', {
+            param($match)
+            $csProjValues[$match.Groups[1].Value]
+        })
 
         if (-not ([System.String]::IsNullOrEmpty($IconFile))) {
             $iconDestination = [System.IO.Path]::Combine($outputDirectory, [System.IO.Path]::GetFileName($IconFile))
@@ -648,24 +738,26 @@ function Invoke-PS2EXE {
         if ($RequireAdmin -or $DPIAware -or $SupportOS -or $LongPaths) {
             $manifestFileName = "$($outputFileName).manifest"
             $manifestPath = [System.IO.Path]::Combine($outputDirectory, $manifestFileName)
-            $coreManifest = "<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>`r`n<assembly xmlns=""urn:schemas-microsoft-com:asm.v1"" manifestVersion=""1.0"">`r`n"
+            $coreManifestParts = [System.Collections.Generic.List[System.String]]::new()
+            $coreManifestParts.Add("<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>`r`n<assembly xmlns=""urn:schemas-microsoft-com:asm.v1"" manifestVersion=""1.0"">`r`n")
             if ($DPIAware -or $LongPaths) {
-                $coreManifest += "<application xmlns=""urn:schemas-microsoft-com:asm.v3"">`r`n<windowsSettings>`r`n"
+                $coreManifestParts.Add("<application xmlns=""urn:schemas-microsoft-com:asm.v3"">`r`n<windowsSettings>`r`n")
                 if ($DPIAware) {
-                    $coreManifest += "<dpiAware xmlns=""http://schemas.microsoft.com/SMI/2005/WindowsSettings"">true</dpiAware>`r`n<dpiAwareness xmlns=""http://schemas.microsoft.com/SMI/2016/WindowsSettings"">PerMonitorV2</dpiAwareness>`r`n"
+                    $coreManifestParts.Add("<dpiAware xmlns=""http://schemas.microsoft.com/SMI/2005/WindowsSettings"">true</dpiAware>`r`n<dpiAwareness xmlns=""http://schemas.microsoft.com/SMI/2016/WindowsSettings"">PerMonitorV2</dpiAwareness>`r`n")
                 }
                 if ($LongPaths) {
-                    $coreManifest += "<longPathAware xmlns=""http://schemas.microsoft.com/SMI/2016/WindowsSettings"">true</longPathAware>`r`n"
+                    $coreManifestParts.Add("<longPathAware xmlns=""http://schemas.microsoft.com/SMI/2016/WindowsSettings"">true</longPathAware>`r`n")
                 }
-                $coreManifest += "</windowsSettings>`r`n</application>`r`n"
+                $coreManifestParts.Add("</windowsSettings>`r`n</application>`r`n")
             }
             if ($RequireAdmin) {
-                $coreManifest += "<trustInfo xmlns=""urn:schemas-microsoft-com:asm.v2"">`r`n<security>`r`n<requestedPrivileges xmlns=""urn:schemas-microsoft-com:asm.v3"">`r`n<requestedExecutionLevel level=""requireAdministrator"" uiAccess=""false""/>`r`n</requestedPrivileges>`r`n</security>`r`n</trustInfo>`r`n"
+                $coreManifestParts.Add("<trustInfo xmlns=""urn:schemas-microsoft-com:asm.v2"">`r`n<security>`r`n<requestedPrivileges xmlns=""urn:schemas-microsoft-com:asm.v3"">`r`n<requestedExecutionLevel level=""requireAdministrator"" uiAccess=""false""/>`r`n</requestedPrivileges>`r`n</security>`r`n</trustInfo>`r`n")
             }
             if ($SupportOS) {
-                $coreManifest += "<compatibility xmlns=""urn:schemas-microsoft-com:compatibility.v1"">`r`n<application>`r`n<supportedOS Id=""{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}""/>`r`n<supportedOS Id=""{1f676c76-80e1-4239-95bb-83d0f6d0da78}""/>`r`n<supportedOS Id=""{4a2f28e3-53b9-4441-ba9c-d69d4a4a6e38}""/>`r`n<supportedOS Id=""{35138b9a-5d96-4fbd-8e2d-a2440225f93a}""/>`r`n<supportedOS Id=""{e2011457-1546-43c5-a5fe-008deee3d3f0}""/>`r`n</application>`r`n</compatibility>`r`n"
+                $coreManifestParts.Add("<compatibility xmlns=""urn:schemas-microsoft-com:compatibility.v1"">`r`n<application>`r`n<supportedOS Id=""{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}""/>`r`n<supportedOS Id=""{1f676c76-80e1-4239-95bb-83d0f6d0da78}""/>`r`n<supportedOS Id=""{4a2f28e3-53b9-4441-ba9c-d69d4a4a6e38}""/>`r`n<supportedOS Id=""{35138b9a-5d96-4fbd-8e2d-a2440225f93a}""/>`r`n<supportedOS Id=""{e2011457-1546-43c5-a5fe-008deee3d3f0}""/>`r`n</application>`r`n</compatibility>`r`n")
             }
-            $coreManifest += '</assembly>'
+            $coreManifestParts.Add('</assembly>')
+            $coreManifest = $coreManifestParts -join ''
             $coreManifest | Set-Content $manifestPath -Encoding UTF8
             $csProjFile = $csProjFile -replace "{{ApplicationManifest}}", $manifestFileName
         }
@@ -680,28 +772,38 @@ function Invoke-PS2EXE {
         $csProjFile | Set-Content -Path $csProjPath -Encoding UTF8
 
         $outputDirectory = Join-Path -Path $outputDirectory -ChildPath 'Release'
+        $dotnetArgs = @('publish', $csProjPath, '-c', 'Release', '-o', $outputDirectory)
         if ($VerbosePreference -eq 'Continue') {
-            dotnet publish $csProjPath -c Release -o $outputDirectory -v d
+            $dotnetArgs += @('-v', 'd')
         } else {
-            dotnet publish $csProjPath -c Release -o $outputDirectory -v q --property WarningLevel=0 /clp:ErrorsOnly
+            $dotnetArgs += @('-v', 'q', '--property', 'WarningLevel=0', '/clp:ErrorsOnly')
         }
 
+        $dotnetOutput = & dotnet @dotnetArgs 2>&1
         if ($LASTEXITCODE -ne 0) {
-            throw "dotnet build failed with exit code $LASTEXITCODE"
+            $errorLines = $dotnetOutput | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] -or $_ -match '(?i)error' }
+            $errorDetail = if ($errorLines) { ($errorLines | Out-String).Trim() } else { ($dotnetOutput | Out-String).Trim() }
+            throw "dotnet publish failed with exit code $LASTEXITCODE.`n$errorDetail"
         }
 
-        Write-Output "Successfully built project in $outputDirectory."
-        if (-not $PSBoundParameters.ContainsKey('PublishSingleFile')) {
-            Write-Output "If you want to package the executable into a single file, use the -PublishSingleFile parameter. This only works with PowerShell 7.6.0 or higher."
+        if (-not $Quiet) {
+            Write-Output "Successfully built project in $outputDirectory."
+            if (-not $PSBoundParameters.ContainsKey('PublishSingleFile')) {
+                Write-Output "If you want to package the executable into a single file, use the -PublishSingleFile parameter. This only works with PowerShell 7.6.0 or higher."
+            }
         }
         Remove-Item -Path $csProjPath -Force -ErrorAction SilentlyContinue
         Remove-Item -Path $scriptCsPath -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path $scriptFilePath -Force -ErrorAction SilentlyContinue
         if (-not ([System.String]::IsNullOrEmpty($IconFile))) {
             Remove-Item -Path $iconDestination -Force -ErrorAction SilentlyContinue
         }
         if ($RequireAdmin -or $DPIAware -or $SupportOS -or $LongPaths) {
             Remove-Item -Path $manifestPath -Force -ErrorAction SilentlyContinue
         }
+
+        # Save build hash for incremental compilation
+        $currentHash | Set-Content -Path $cacheHashPath -Encoding UTF8 -Force
     } else {
         $programFrame = Remove-EmptyPlaceholders -Content $programFrame
         $compilerParameters.CompilerOptions += $parameterDefinitions
@@ -714,19 +816,19 @@ function Invoke-PS2EXE {
             $cr.Errors | ForEach-Object { Write-Verbose $_ }
         } else {
             if (Test-Path -LiteralPath $OutputFile) {
-                Write-Output "Output file $OutputFile written"
+                if (-not $Quiet) { Write-Output "Output file $OutputFile written" }
 
                 if ($prepareDebug) {
                     $cr.TempFiles | Where-Object { $_ -ilike '*.cs' } | Select-Object -First 1 | ForEach-Object {
                         $dstSrc = ([System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($OutputFile), [System.IO.Path]::GetFileNameWithoutExtension($OutputFile) + '.cs'))
-                        Write-Output "Source file name for debug copied: $($dstSrc)"
+                        Write-Verbose "Source file name for debug copied: $($dstSrc)"
                         Copy-Item -Path $_ -Destination $dstSrc -Force
                     }
                     $cr.TempFiles | Remove-Item -Verbose:$false -Force -ErrorAction SilentlyContinue
                 }
                 if ($ConfigFile) {
                     $ConfigFileForEXE3 | Set-Content ($OutputFile + '.config') -Encoding UTF8
-                    Write-Output 'Config file for EXE created'
+                    Write-Verbose 'Config file for EXE created'
                 }
             } else {
                 Write-Error -ErrorAction 'Continue' "Output file $OutputFile not written"

@@ -1,0 +1,56 @@
+name: Build and Test
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    permissions: write-all
+
+    # Only when run from the main repo
+    if: github.repository == 'FabienTschanz/PS2EXE.Core'
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Build PowerShell Module
+        shell: pwsh
+        run: |
+          & ./build.ps1 -Clean
+
+      - name: Run Tests
+        shell: pwsh
+        run: |
+          & ./build.ps1 -Load -Test
+
+      - name: Run PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+          $results = Invoke-ScriptAnalyzer -Path "./bin/PS2EXE.Core/" -Settings ./PSScriptAnalyzerSettings.psd1 -Recurse
+          if ($results) {
+            $results | Format-Table -AutoSize
+            throw "PSScriptAnalyzer found $($results.Count) issue(s)."
+          }
+
+      - name: Validate Module Manifest
+        shell: pwsh
+        run: |
+          Test-ModuleManifest -Path ./bin/PS2EXE.Core.psd1
+
+      - name: Validate Module Import
+        shell: pwsh
+        run: |
+          Import-Module ./bin/PS2EXE.Core.psd1 -Force -ErrorAction Stop
+          $exportedFunctions = (Get-Module PS2EXE.Core).ExportedFunctions.Keys
+          if ($exportedFunctions.Count -eq 0)
+          {
+              throw "No functions exported from the PS2EXE.Core module."
+          }
+          Write-Host "Exported functions: $($exportedFunctions -join ', ')"

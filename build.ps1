@@ -79,6 +79,6 @@ if ($Load) {
 }
 
 if ($Test) {
-    Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'src\test\TestHarness.psm1') -Force
+    Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath 'src/test/TestHarness.psm1') -Force
     Invoke-TestHarness -IgnoreCodeCoverage
 }
