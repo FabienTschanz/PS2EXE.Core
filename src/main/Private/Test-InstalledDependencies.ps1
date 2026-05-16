@@ -22,6 +22,7 @@
     Returns $true if all required dependencies are installed, otherwise returns $false.
 #>
 function Test-InstalledDependencies {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification='This function is intentionally plural.')]
     [CmdletBinding()]
     [OutputType([System.Boolean])]
     param (
