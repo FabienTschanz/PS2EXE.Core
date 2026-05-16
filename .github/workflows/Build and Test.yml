@@ -33,7 +33,7 @@ jobs:
         shell: pwsh
         run: |
           Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
-          $results = Invoke-ScriptAnalyzer -Path "./bin/PS2EXE.Core/" -Settings ./PSScriptAnalyzerSettings.psd1 -Recurse
+          $results = Invoke-ScriptAnalyzer -Path "./bin" -Settings ./PSScriptAnalyzerSettings.psd1 -Recurse
           if ($results) {
             $results | Format-Table -AutoSize
             throw "PSScriptAnalyzer found $($results.Count) issue(s)."

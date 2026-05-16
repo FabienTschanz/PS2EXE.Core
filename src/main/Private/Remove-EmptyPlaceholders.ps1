@@ -17,6 +17,8 @@
     System.String
 #>
 function Remove-EmptyPlaceHolders {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification='Only removes empty placeholders, does not delete anything else.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification='This function is intentionally plural.')]
     [CmdletBinding()]
     [OutputType([System.String])]
     param (

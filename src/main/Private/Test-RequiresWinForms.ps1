@@ -19,6 +19,7 @@
     System.Boolean. True if the assembly is required, False otherwise.
 #>
 function Test-RequiresWinForms {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification='This function targets Windows Forms, which is plural by design.')]
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
