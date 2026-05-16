@@ -9,7 +9,7 @@ BeforeAll {
     # Remove previous module references
     Get-Module -Name $moduleName | Remove-Module -Force
 
-    $modulePath = Join-Path -Path $repoDir -ChildPath "bin/$moduleName.psd1"
+    $modulePath = Join-Path -Path $repoDir -ChildPath "bin/$moduleName/$moduleName.psd1"
 
     Import-Module -Name $modulePath
 }

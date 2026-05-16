@@ -8,7 +8,7 @@ BeforeAll {
 
     Get-Module -Name $moduleName | Remove-Module -Force
 
-    $modulePath = Join-Path -Path $rootPath -ChildPath "bin/$moduleName.psd1"
+    $modulePath = Join-Path -Path $rootPath -ChildPath "bin/$moduleName/$moduleName.psd1"
     if (-not (Test-Path -Path $modulePath)) {
         throw "Module path '$modulePath' does not exist. Ensure the module is built before running tests."
     }
