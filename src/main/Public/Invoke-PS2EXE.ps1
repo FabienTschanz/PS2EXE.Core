@@ -345,12 +345,11 @@ function Invoke-PS2EXE {
         $TargetOS = 'Windows',
 
         [Parameter(ParameterSetName = 'Core')]
-        [ValidateSet('net6.0', 'net7.0', 'net8.0', 'net9.0', 'net10.0')]
+        [ValidateSet('net6.0', 'net7.0', 'net8.0', 'net9.0', 'net10.0', 'net11.0')]
         [System.String]
         $TargetFramework,
 
         [Parameter(ParameterSetName = 'Core')]
-        [ValidateSet('7.2.5', '7.2.8', '7.3.4', '7.3.5', '7.4.2', '7.4.5', '7.5.0', '7.5.1', '7.5.2', '7.6.0')]
         [System.Version]
         $PowerShellVersion,
 
@@ -529,15 +528,15 @@ function Invoke-PS2EXE {
     }
     $referenceAssembies += ([System.AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.ManifestModule.Name -ieq 'System.Management.Automation.dll' } | Select-Object -First 1).Location
 
-    $n = New-Object System.Reflection.AssemblyName('System.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089')
+    $n = [System.Reflection.AssemblyName]::new('System.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089')
     [System.AppDomain]::CurrentDomain.Load($n) | Out-Null
     $referenceAssembies += ([System.AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.ManifestModule.Name -ieq 'System.Core.dll' } | Select-Object -First 1).Location
 
     if ($NoConsole) {
-        $n = New-Object System.Reflection.AssemblyName('System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089')
+        $n = [System.Reflection.AssemblyName]::new('System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089')
         [System.AppDomain]::CurrentDomain.Load($n) | Out-Null
 
-        $n = New-Object System.Reflection.AssemblyName('System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a')
+        $n = [System.Reflection.AssemblyName]::new('System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a')
         [System.AppDomain]::CurrentDomain.Load($n) | Out-Null
 
         $referenceAssembies += ([System.AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.ManifestModule.Name -ieq 'System.Windows.Forms.dll' } | Select-Object -First 1).Location
@@ -551,8 +550,8 @@ function Invoke-PS2EXE {
         $platform = 'x86'
     }
 
-    $codeProvider = (New-Object Microsoft.CSharp.CSharpCodeProvider($o))
-    $compilerParameters = New-Object System.CodeDom.Compiler.CompilerParameters($referenceAssembies, $OutputFile)
+    $codeProvider = [Microsoft.CSharp.CSharpCodeProvider]::new($o)
+    $compilerParameters = [System.CodeDom.Compiler.CompilerParameters]::new($referenceAssembies, $OutputFile)
     $compilerParameters.GenerateInMemory = $false
     $compilerParameters.GenerateExecutable = $true
 
@@ -678,9 +677,15 @@ function Invoke-PS2EXE {
 
         $programFrame = $programFrame -replace "{{ResourcePrefix}}", "$outputFileName."
         $programFrame = Remove-EmptyPlaceholders -Content $programFrame
-        New-Item -Path $outputDirectory -ItemType Directory -Force | Out-Null
+        if (-not (Test-Path -Path $outputDirectory)) {
+            New-Item -Path $outputDirectory -ItemType Directory -Force | Out-Null
+        }
         $scriptFilePath = [System.IO.Path]::Combine($outputDirectory, [System.IO.Path]::GetFileName($InputFile))
-        Copy-Item -Path $InputFile -Destination $scriptFilePath -Force
+        if ($InputFile -ne $scriptFilePath) {
+            Copy-Item -Path $InputFile -Destination $scriptFilePath -Force
+        } else {
+            Write-Verbose "Input file is already in the output directory, skipping copy."
+        }
         $scriptCsPath = [System.IO.Path]::Combine($outputDirectory, "$($outputFileName).cs")
         $programFrame | Set-Content -Path $scriptCsPath -Encoding UTF8
         $csProjPath = [System.IO.Path]::Combine($outputDirectory, "$($outputFileName).csproj")
@@ -794,7 +799,10 @@ function Invoke-PS2EXE {
         }
         Remove-Item -Path $csProjPath -Force -ErrorAction SilentlyContinue
         Remove-Item -Path $scriptCsPath -Force -ErrorAction SilentlyContinue
-        Remove-Item -Path $scriptFilePath -Force -ErrorAction SilentlyContinue
+        # Prevent deletion of the input file if it is already in the output directory
+        if ($InputFile -ne $scriptFilePath) {
+            Remove-Item -Path $scriptFilePath -Force -ErrorAction SilentlyContinue
+        }
         if (-not ([System.String]::IsNullOrEmpty($IconFile))) {
             Remove-Item -Path $iconDestination -Force -ErrorAction SilentlyContinue
         }

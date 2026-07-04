@@ -12,7 +12,7 @@
     RootModule             = 'PS2EXE.Core.psm1'
 
     # Version number of this module.
-    ModuleVersion          = '0.5.0'
+    ModuleVersion          = '0.6.0'
 
     # Supported PSEditions
     # CompatiblePSEditions = @()
@@ -126,6 +126,11 @@ Or use Win-PS2EXE as a graphical front end to the compiler.
 
             # ReleaseNotes of this module
             ReleaseNotes = @'
+# Version 0.6.0
+* Added support for .NET 11 SDK and PowerShell 7.7
+* Fixed an issue with overwriting the source and target file
+* Improved publishing for single file
+
 # Version 0.5.0
 * Added support for .NET 10 SDK and PowerShell 7.6
 * Added support for trimming unused code with the -Trimmed switch
