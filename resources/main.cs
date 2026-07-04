@@ -8,6 +8,7 @@ using System.Text;
 using System.Management.Automation;
 using System.Management.Automation.Runspaces;
 using System.Globalization;
+using System.IO;
 using System.Management.Automation.Host;
 using System.Security;
 using System.Reflection;
@@ -2199,10 +2200,12 @@ namespace ModuleNameSpace
                                     return 0;
                                 }
 
+                                string modulePath = GetPowershellModulePath();
                                 if (bHelp)
                                 { // help selected
-                                    posh.AddScript("function " + System.AppDomain.CurrentDomain.FriendlyName + "{" + script + "}; Get-Help " + System.AppDomain.CurrentDomain.FriendlyName + " " + sHelp + " | Out-String");
+                                    posh.AddScript("$env:PSModulePath = \"" + modulePath + "\"; function " + System.AppDomain.CurrentDomain.FriendlyName + "{" + script + "}; Get-Help " + System.AppDomain.CurrentDomain.FriendlyName + " " + sHelp + " | Out-String");
                                 } else { // execution selected
+                                    script = script.Insert(0, "$env:PSModulePath = \"" + modulePath + "\"; ");
                                     posh.AddScript(script);
                                 }
                             }
@@ -2313,6 +2316,51 @@ namespace ModuleNameSpace
 #endif
             }
             return me.ExitCode;
+        }
+
+        private static string GetPowershellModulePath()
+        {
+            var environment = new StringBuilder();
+
+            // Get the default windows modules path
+            var winModules = Path.Combine(Environment.ExpandEnvironmentVariables("%WINDIR%"),
+                "system32", "WindowsPowerShell", "v1.0", "Modules");
+
+            // Add default Windows modules
+            var env = Environment.GetEnvironmentVariable("PSModulePath");
+            if (!string.IsNullOrEmpty(env))
+                environment.Append(env);
+
+            if (!environment.ToString().Contains(winModules, StringComparison.OrdinalIgnoreCase))
+                environment.Append(';').Append(winModules);
+
+            // Get PowerShell SDK modules path
+            var bundlePath = GetBundleExtractLocation();
+
+            var extractLocation = Path.Combine(bundlePath, "runtimes", "win", "lib", "{{TargetFramework}}", "Modules");
+            if (System.IO.Directory.Exists(extractLocation))
+                environment.Append(';').Append(extractLocation);
+
+            return environment.ToString();
+        }
+
+        private static string? GetBundleExtractLocation()
+        {
+            // Get extract bundle extract location
+            // Docs: https://learn.microsoft.com/en-us/dotnet/core/deploying/single-file/overview?tabs=cli#native-libraries
+            string? assemblyLocation = null;
+            if (string.IsNullOrEmpty(assemblyLocation))
+                assemblyLocation = Assembly.GetEntryAssembly()?.Location;
+            if (string.IsNullOrEmpty(assemblyLocation))
+                assemblyLocation = Assembly.GetExecutingAssembly().Location;
+            if (string.IsNullOrEmpty(assemblyLocation))
+                assemblyLocation = AppContext.BaseDirectory;
+
+            // Get the base folder of the assembly location
+            var baseFolder = Path.GetDirectoryName(assemblyLocation);
+            if (!string.IsNullOrEmpty(baseFolder) && !Directory.Exists(baseFolder))
+                return null;
+            return baseFolder;
         }
 
         static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)

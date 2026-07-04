@@ -436,7 +436,7 @@ function Invoke-PS2EXE {
         }
 
         if (-not $PSBoundParameters.ContainsKey('TargetFramework')) {
-            $TargetFramework = "net$((Get-VersionMapping -PowerShellVersion $PowerShellVersion).NetSdkVersion.Major).0"
+            $TargetFramework = "net$((Get-LatestVersionCombination -PowerShellVersion $PowerShellVersion).NetSdkVersion.Major).0"
         }
 
         if (-not $PSBoundParameters.ContainsKey('TargetOS')) {
@@ -621,17 +621,18 @@ function Invoke-PS2EXE {
     }
 
     $templateValues = @{
-        'Title'       = $Title
-        'Product'     = $Product
-        'Copyright'   = $Copyright
-        'Trademark'   = $Trademark
-        'Description' = $Description
-        'Company'     = $Company
-        'Culture'     = $culture
-        'FileName'    = [System.IO.Path]::GetFileName($InputFile)
-        'Version'     = $Version
+        'Title'           = $Title
+        'Product'         = $Product
+        'Copyright'       = $Copyright
+        'Trademark'       = $Trademark
+        'Description'     = $Description
+        'Company'         = $Company
+        'Culture'         = $culture
+        'FileName'        = [System.IO.Path]::GetFileName($InputFile)
+        'Version'         = $Version
+        'TargetFramework' = $TargetFramework
     }
-    $programFrame = [regex]::Replace($programFrame, '\{\{(Title|Product|Copyright|Trademark|Description|Company|Culture|FileName|Version)\}\}', {
+    $programFrame = [regex]::Replace($programFrame, '\{\{(Title|Product|Copyright|Trademark|Description|Company|Culture|FileName|Version|TargetFramework)\}\}', {
         param($match)
         $templateValues[$match.Groups[1].Value]
     })
