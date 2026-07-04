@@ -43,7 +43,7 @@ function Test-Arguments {
         throw 'Input file is identical to output file!'
     }
 
-    if ($Arguments.OutputFile -notlike '*.exe' -and $Arguments.OutputFile -notlike '*.com') {
+    if ($Arguments.ContainsKey('OutputFile') -and $Arguments.OutputFile -notmatch "(\.exe$|\.com$)") {
         throw "Output file must have extension '.exe' or '.com'!"
     }
 
