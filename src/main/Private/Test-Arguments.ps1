@@ -113,7 +113,7 @@ function Test-Arguments {
     }
 
     if ($Arguments.PowerShellVersion) {
-        $versionMapping = Get-VersionMapping -PowerShellVersion $Arguments.PowerShellVersion
+        $versionMapping = Get-LatestVersionCombination -PowerShellVersion $Arguments.PowerShellVersion
         if ($Arguments.TargetFramework) {
             if ($versionMapping.NetSdkVersion.Major -gt ([version]$Arguments.TargetFramework.Replace('net', '')).Major) {
                 throw "The specified TargetFramework $($Arguments.TargetFramework) is not compatible with the specified PowerShellVersion $($Arguments.PowerShellVersion).
