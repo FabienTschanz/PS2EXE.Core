@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
     <PublishSingleFile>{{PublishSingleFile}}</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>{{PublishSingleFile}}</IncludeNativeLibrariesForSelfExtract>
+    <IncludeAllContentForSelfExtract>{{PublishSingleFile}}</IncludeAllContentForSelfExtract>
     <RuntimeIdentifier>{{RuntimeIdentifier}}</RuntimeIdentifier>
     <SelfContained>{{SelfContained}}</SelfContained>
     <UseWindowsForms>{{UseWindowsForms}}</UseWindowsForms>
