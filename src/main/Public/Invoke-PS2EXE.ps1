@@ -658,39 +658,6 @@ function Invoke-PS2EXE {
         [System.Environment]::SetEnvironmentVariable('DOTNET_CLI_TELEMETRY_OPTOUT', '1', 'User')
         $outputDirectory = [System.IO.Path]::GetDirectoryName($OutputFile)
         $outputFileName = [System.IO.Path]::GetFileNameWithoutExtension($OutputFile)
-
-        # Incremental compilation: skip rebuild if inputs haven't changed
-        $releaseDir = Join-Path -Path $outputDirectory -ChildPath 'Release'
-        $cacheHashPath = Join-Path -Path $outputDirectory -ChildPath '.ps2exe.hash'
-        $scriptContent = Get-Content -Path $InputFile -Raw -Encoding UTF8
-        $cacheInput = "$scriptContent|$TargetFramework|$PowerShellVersion|$runtimeIdentifier|$SelfContained|$PublishSingleFile|$Trimmed|$ReadyToRun|$InvariantGlobalization|$AOT|$NoConsole|$CredentialGUI"
-        $currentHash = [System.BitConverter]::ToString([System.Security.Cryptography.SHA256]::Create().ComputeHash([System.Text.Encoding]::UTF8.GetBytes($cacheInput))).Replace('-', '')
-
-        if ((Test-Path -Path $cacheHashPath) -and (Test-Path -Path $releaseDir)) {
-            $previousHash = (Get-Content -Path $cacheHashPath -Raw -ErrorAction SilentlyContinue).Trim()
-            if ($previousHash -eq $currentHash) {
-                if (-not $Quiet) {
-                    Write-Output "No changes detected, skipping rebuild. Output: $releaseDir"
-                }
-                return
-            }
-        }
-
-        $programFrame = $programFrame -replace "{{ResourcePrefix}}", "$outputFileName."
-        $programFrame = Remove-EmptyPlaceholders -Content $programFrame
-        if (-not (Test-Path -Path $outputDirectory)) {
-            New-Item -Path $outputDirectory -ItemType Directory -Force | Out-Null
-        }
-        $scriptFilePath = [System.IO.Path]::Combine($outputDirectory, [System.IO.Path]::GetFileName($InputFile))
-        if ($InputFile -ne $scriptFilePath) {
-            Copy-Item -Path $InputFile -Destination $scriptFilePath -Force
-        } else {
-            Write-Verbose "Input file is already in the output directory, skipping copy."
-        }
-        $scriptCsPath = [System.IO.Path]::Combine($outputDirectory, "$($outputFileName).cs")
-        $programFrame | Set-Content -Path $scriptCsPath -Encoding UTF8
-        $csProjPath = [System.IO.Path]::Combine($outputDirectory, "$($outputFileName).csproj")
-
         $runtimeIdentifier = 'win-x64'
         if ($TargetOS -eq 'Windows') {
             if ($x64) {
@@ -713,6 +680,9 @@ function Invoke-PS2EXE {
                 $runtimeIdentifier = 'osx-x64'
             }
         }
+
+        $programFrame = $programFrame -replace "{{ResourcePrefix}}", "$outputFileName."
+        $programFrame = Remove-EmptyPlaceholders -Content $programFrame
         $requiresWinForms = Test-RequiresWinForms -FilePath $InputFile
 
         $csProjValues = @{
@@ -730,6 +700,49 @@ function Invoke-PS2EXE {
             'InvariantGlobalization' = "$InvariantGlobalization"
             'PublishAot'            = "$AOT"
         }
+
+        # Incremental compilation: skip rebuild if inputs haven't changed
+        $releaseDir = Join-Path -Path $outputDirectory -ChildPath 'Release'
+        $cacheHashPath = Join-Path -Path $outputDirectory -ChildPath '.ps2exe.hash'
+        $scriptContent = Get-Content -Path $InputFile -Raw -Encoding UTF8
+        $iconFingerprint = ''
+        if (-not [System.String]::IsNullOrEmpty($IconFile) -and (Test-Path -Path $IconFile)) {
+            $iconFingerprint = (Get-FileHash -Path $IconFile -Algorithm SHA256).Hash
+        }
+
+        $cacheInput = @(
+            $scriptContent
+            $programFrame
+            $Script:BaseCsprojTemplate
+            (($csProjValues.GetEnumerator() | Sort-Object -Property 'Key' | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join ';')
+            $iconFingerprint
+            "$RequireAdmin|$DPIAware|$SupportOS|$LongPaths"
+        ) -join '|'
+        $currentHash = [System.BitConverter]::ToString([System.Security.Cryptography.SHA256]::Create().ComputeHash([System.Text.Encoding]::UTF8.GetBytes($cacheInput))).Replace('-', '')
+
+        if ((Test-Path -Path $cacheHashPath) -and (Test-Path -Path $releaseDir)) {
+            $previousHash = (Get-Content -Path $cacheHashPath -Raw -ErrorAction SilentlyContinue).Trim()
+            if ($previousHash -eq $currentHash) {
+                if (-not $Quiet) {
+                    Write-Output "No changes detected, skipping rebuild. Output: $releaseDir"
+                }
+                return
+            }
+        }
+
+        if (-not (Test-Path -Path $outputDirectory)) {
+            New-Item -Path $outputDirectory -ItemType Directory -Force | Out-Null
+        }
+        $scriptFilePath = [System.IO.Path]::Combine($outputDirectory, [System.IO.Path]::GetFileName($InputFile))
+        if ($InputFile -ne $scriptFilePath) {
+            Copy-Item -Path $InputFile -Destination $scriptFilePath -Force
+        } else {
+            Write-Verbose "Input file is already in the output directory, skipping copy."
+        }
+        $scriptCsPath = [System.IO.Path]::Combine($outputDirectory, "$($outputFileName).cs")
+        $programFrame | Set-Content -Path $scriptCsPath -Encoding UTF8
+        $csProjPath = [System.IO.Path]::Combine($outputDirectory, "$($outputFileName).csproj")
+
         $csProjFile = [regex]::Replace($csProjFile, '\{\{(InputFile|RuntimeIdentifier|TargetFramework|PowerShellVersion|SelfContained|PublishSingleFile|UseWindowsForms|DefineConstants|PublishTrimmed|TrimMode|PublishReadyToRun|InvariantGlobalization|PublishAot)\}\}', {
             param($match)
             $csProjValues[$match.Groups[1].Value]
